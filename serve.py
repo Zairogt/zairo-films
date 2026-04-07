@@ -9,15 +9,15 @@ import socketserver
 import os
 
 PORT = 8080
-BUILD_DIR = os.path.join(os.path.dirname(__file__), "zairo-films")
+BUILD_DIR = os.path.join(os.path.dirname(__file__), "dist")
 
-os.chdir(os.path.dirname(BUILD_DIR))
+os.chdir(BUILD_DIR)
 
 handler = http.server.SimpleHTTPRequestHandler
 
 with socketserver.TCPServer(("0.0.0.0", PORT), handler) as httpd:
     print(f"Servidor corriendo en:")
-    print(f"  Local:   http://localhost:{PORT}/zairo-films/")
-    print(f"  Móvil:   http://192.168.0.4:{PORT}/zairo-films/")
+    print(f"  Local:   http://localhost:{PORT}/")
+    print(f"  Móvil:   http://192.168.0.4:{PORT}/")
     print(f"\nPresiona Ctrl+C para detener.")
     httpd.serve_forever()
