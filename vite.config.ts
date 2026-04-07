@@ -4,5 +4,8 @@ import tailwindcss from '@tailwindcss/vite'
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
-  base: '/zairo-films/', // nombre del repo en GitHub Pages
+  base: '/zairo-films/',
+  build: {
+    outDir: 'zairo-films',
+  },
 })

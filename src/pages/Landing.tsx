@@ -195,11 +195,9 @@ export default function Landing() {
             <p style={{
               fontFamily: 'Inter, sans-serif', fontSize: '13px',
               fontWeight: 300, color: '#6b6560', lineHeight: 1.85,
+              fontStyle: 'italic',
             }}>
-              Cineasta guatemalteco con más de una década documentando realidades
-              centroamericanas. Su trabajo combina la rigurosidad narrativa con
-              una sensibilidad poética que lo distingue en el panorama del cine
-              independiente de la región.
+              Próximamente...
             </p>
           </div>
 
@@ -208,25 +206,15 @@ export default function Landing() {
             border: '1px solid rgba(255,255,255,0.06)',
             padding: 'clamp(24px, 4vw, 48px)',
             position: 'relative',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
-            <div style={{
-              position: 'absolute', top: 0, left: 'clamp(24px, 4vw, 48px)',
-              width: '40px', height: '3px', background: '#c9a227',
-            }} />
             <p style={{
               fontFamily: 'Cormorant Garamond, serif',
               fontSize: 'clamp(17px, 2vw, 22px)',
               fontWeight: 300, fontStyle: 'italic',
-              color: '#e8e3d9', lineHeight: 1.65,
+              color: 'rgba(232,227,217,0.25)', lineHeight: 1.65,
             }}>
-              "El cine no es un espejo que refleja la realidad.
-              Es un martillo con el que la moldeamos."
-            </p>
-            <p style={{
-              fontFamily: 'Inter, sans-serif', fontSize: '11px',
-              color: '#c9a227', letterSpacing: '0.1em', marginTop: '20px',
-            }}>
-              — Rodolfo Espinoza Orantes
+              Próximamente...
             </p>
           </div>
         </div>

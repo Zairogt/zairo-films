@@ -9,9 +9,9 @@ import socketserver
 import os
 
 PORT = 8080
-DIST_DIR = os.path.join(os.path.dirname(__file__), "dist")
+BUILD_DIR = os.path.join(os.path.dirname(__file__), "zairo-films")
 
-os.chdir(os.path.dirname(DIST_DIR))
+os.chdir(os.path.dirname(BUILD_DIR))
 
 handler = http.server.SimpleHTTPRequestHandler
 

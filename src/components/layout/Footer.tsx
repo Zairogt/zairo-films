@@ -71,9 +71,6 @@ export default function Footer() {
         <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '11px', color: '#3d3a35' }}>
           © {new Date().getFullYear()} Rodolfo Espinoza Orantes · Zairo Films
         </p>
-        <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '11px', color: '#3d3a35' }}>
-          Rodolfo 85% / Zairo 15%
-        </p>
       </div>
     </footer>
   )
