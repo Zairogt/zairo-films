@@ -281,6 +281,20 @@ body::after {
   .nav-hamburger { display: flex; }
 }
 
+/* Spin animation for loading spinners */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Login / Signup split layout responsive */
+.hide-mobile { display: flex; flex: 1; }
+.show-mobile { display: none; }
+
+@media (max-width: 768px) {
+  .hide-mobile { display: none !important; }
+  .show-mobile { display: block !important; }
+}
+
 @media (max-width: 480px) {
   .catalog-grid {
     grid-template-columns: 1fr;

@@ -4,6 +4,9 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
 import GoogleButton from '../components/GoogleButton'
+import { MOVIES } from '../data/movies'
+
+const BG_MOVIE = MOVIES[1] // Aquí Me Quedo
 
 export default function Signup() {
   const { signup, loginWithGoogle } = useAuth()
@@ -12,8 +15,11 @@ export default function Signup() {
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showPass, setShowPass] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+
+  const passwordStrength = password.length === 0 ? 0 : password.length < 6 ? 1 : password.length < 10 ? 2 : 3
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
@@ -37,56 +43,232 @@ export default function Signup() {
     navigate('/catalogo')
   }, [loginWithGoogle, showToast, navigate])
 
+  const strengthColors = ['transparent', '#c0392b', '#c9a227', '#4caf50']
+  const strengthLabels = ['', 'Débil', 'Media', 'Fuerte']
+
   return (
-    <div style={{
-      minHeight: '100vh',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      background: 'radial-gradient(ellipse at 50% 0%, #1a1208 0%, #080808 60%)',
-    }}>
-      <div className="anim" style={{ width: '100%', maxWidth: '400px', padding: '0 24px' }}>
-        {/* Logo */}
-        <div style={{ textAlign: 'center', marginBottom: '48px' }}>
+    <div style={{ minHeight: '100vh', display: 'flex' }}>
+
+      {/* ── Panel izquierdo — visual ── */}
+      <div className="hide-mobile" style={{
+        flex: '1',
+        position: 'relative',
+        overflow: 'hidden',
+        background: '#080808',
+      }}>
+        {/* Poster de fondo */}
+        <img
+          src={BG_MOVIE.poster_url}
+          alt=""
+          style={{
+            position: 'absolute', inset: 0,
+            width: '100%', height: '100%',
+            objectFit: 'cover',
+            objectPosition: 'center top',
+            filter: 'brightness(0.4) saturate(1.1)',
+          }}
+        />
+        {/* Gradientes */}
+        <div style={{
+          position: 'absolute', inset: 0,
+          background: 'linear-gradient(to right, rgba(8,8,8,0) 40%, #080808 100%)',
+        }} />
+        <div style={{
+          position: 'absolute', inset: 0,
+          background: 'linear-gradient(to top, rgba(8,8,8,0.9) 0%, transparent 50%)',
+        }} />
+
+        {/* Contenido sobre el poster */}
+        <div style={{
+          position: 'absolute', bottom: '48px', left: '48px', right: '48px',
+        }}>
+          <div style={{
+            width: '36px', height: '1px',
+            background: '#c9a227', marginBottom: '20px',
+          }} />
+          <p style={{
+            fontFamily: 'Cormorant Garamond, serif',
+            fontSize: 'clamp(18px, 2.5vw, 26px)',
+            fontWeight: 300, fontStyle: 'italic',
+            color: 'rgba(232,227,217,0.85)',
+            lineHeight: 1.5, marginBottom: '16px',
+          }}>
+            "{BG_MOVIE.tagline}"
+          </p>
+          <p style={{
+            fontFamily: 'Inter, sans-serif', fontSize: '11px',
+            color: '#c9a227', letterSpacing: '0.15em',
+            textTransform: 'uppercase',
+          }}>
+            {BG_MOVIE.title} · {BG_MOVIE.year}
+          </p>
+        </div>
+
+        {/* Logo arriba izquierda */}
+        <div style={{ position: 'absolute', top: '40px', left: '48px' }}>
           <Link to="/" style={{ textDecoration: 'none' }}>
-            <div style={{ fontFamily: 'Cormorant Garamond, serif', fontSize: '28px', fontWeight: 300, color: '#e8e3d9', letterSpacing: '0.3em', textTransform: 'uppercase' }}>ZAIRO</div>
-            <div style={{ fontFamily: 'Inter, sans-serif', fontSize: '9px', fontWeight: 500, color: '#c9a227', letterSpacing: '0.45em', textTransform: 'uppercase', marginTop: '4px' }}>FILMS</div>
+            <div style={{ fontFamily: 'Cormorant Garamond, serif', fontSize: '22px', fontWeight: 300, color: '#e8e3d9', letterSpacing: '0.3em', textTransform: 'uppercase' }}>ZAIRO</div>
+            <div style={{ fontFamily: 'Inter, sans-serif', fontSize: '8px', fontWeight: 500, color: '#c9a227', letterSpacing: '0.45em', textTransform: 'uppercase', marginTop: '2px' }}>FILMS</div>
+          </Link>
+        </div>
+      </div>
+
+      {/* ── Panel derecho — formulario ── */}
+      <div style={{
+        width: '100%',
+        maxWidth: '480px',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
+        padding: 'clamp(32px, 6vw, 64px)',
+        background: '#080808',
+        borderLeft: '1px solid rgba(255,255,255,0.04)',
+      }}>
+        {/* Logo móvil */}
+        <div className="show-mobile" style={{ textAlign: 'center', marginBottom: '40px' }}>
+          <Link to="/" style={{ textDecoration: 'none' }}>
+            <div style={{ fontFamily: 'Cormorant Garamond, serif', fontSize: '24px', fontWeight: 300, color: '#e8e3d9', letterSpacing: '0.3em', textTransform: 'uppercase' }}>ZAIRO</div>
+            <div style={{ fontFamily: 'Inter, sans-serif', fontSize: '8px', color: '#c9a227', letterSpacing: '0.45em', textTransform: 'uppercase', marginTop: '4px' }}>FILMS</div>
           </Link>
         </div>
 
-        <h1 style={{ fontFamily: 'Cormorant Garamond, serif', fontSize: '32px', fontWeight: 300, color: '#e8e3d9', textAlign: 'center', marginBottom: '8px' }}>
-          Crear cuenta
-        </h1>
-        <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '12px', color: '#6b6560', textAlign: 'center', letterSpacing: '0.05em', marginBottom: '36px' }}>
-          Acceso gratuito al catálogo con anuncios
-        </p>
+        <div className="anim">
+          <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '10px', fontWeight: 500, letterSpacing: '0.25em', textTransform: 'uppercase', color: '#c9a227' }}>
+            Acceso gratuito
+          </span>
+          <h1 style={{ fontFamily: 'Cormorant Garamond, serif', fontSize: 'clamp(32px, 4vw, 44px)', fontWeight: 300, color: '#e8e3d9', marginTop: '10px', marginBottom: '6px', lineHeight: 1.1 }}>
+            Crear cuenta
+          </h1>
+          <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '12px', color: '#6b6560', letterSpacing: '0.03em', marginBottom: '36px' }}>
+            Disfruta el catálogo completo de Zairo Films
+          </p>
 
-        {/* Google button */}
-        <GoogleButton onSuccess={handleGoogle} label="Registrarse con Google" />
+          {/* Google */}
+          <GoogleButton onSuccess={handleGoogle} label="Registrarse con Google" />
 
-        {/* Separador */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', margin: '24px 0' }}>
-          <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.07)' }} />
-          <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '10px', color: '#3d3a35', letterSpacing: '0.1em', textTransform: 'uppercase' }}>o con email</span>
-          <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.07)' }} />
+          {/* Separador */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', margin: '24px 0' }}>
+            <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.07)' }} />
+            <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '10px', color: '#3d3a35', letterSpacing: '0.1em', textTransform: 'uppercase' }}>o con email</span>
+            <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.07)' }} />
+          </div>
+
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            {/* Nombre */}
+            <div>
+              <label style={{ fontFamily: 'Inter, sans-serif', fontSize: '10px', letterSpacing: '0.15em', textTransform: 'uppercase', color: '#6b6560', display: 'block', marginBottom: '8px' }}>
+                Nombre completo
+              </label>
+              <input
+                className="input-field"
+                type="text"
+                placeholder="Tu nombre"
+                value={name}
+                onChange={e => { setName(e.target.value); setError('') }}
+                style={{ width: '100%' }}
+              />
+            </div>
+
+            {/* Email */}
+            <div>
+              <label style={{ fontFamily: 'Inter, sans-serif', fontSize: '10px', letterSpacing: '0.15em', textTransform: 'uppercase', color: '#6b6560', display: 'block', marginBottom: '8px' }}>
+                Correo electrónico
+              </label>
+              <input
+                className="input-field"
+                type="email"
+                placeholder="tu@email.com"
+                value={email}
+                onChange={e => { setEmail(e.target.value); setError('') }}
+                style={{ width: '100%' }}
+              />
+            </div>
+
+            {/* Contraseña con toggle + strength */}
+            <div>
+              <label style={{ fontFamily: 'Inter, sans-serif', fontSize: '10px', letterSpacing: '0.15em', textTransform: 'uppercase', color: '#6b6560', display: 'block', marginBottom: '8px' }}>
+                Contraseña
+              </label>
+              <div style={{ position: 'relative' }}>
+                <input
+                  className="input-field"
+                  type={showPass ? 'text' : 'password'}
+                  placeholder="Mínimo 6 caracteres"
+                  value={password}
+                  onChange={e => { setPassword(e.target.value); setError('') }}
+                  style={{ width: '100%', paddingRight: '48px' }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPass(!showPass)}
+                  style={{
+                    position: 'absolute', right: '0', top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: 'transparent', border: 'none',
+                    color: '#6b6560', cursor: 'pointer',
+                    fontFamily: 'Inter, sans-serif', fontSize: '10px',
+                    letterSpacing: '0.08em', padding: '0 4px',
+                    transition: 'color 0.2s',
+                  }}
+                  onMouseEnter={e => (e.currentTarget.style.color = '#e8e3d9')}
+                  onMouseLeave={e => (e.currentTarget.style.color = '#6b6560')}
+                >
+                  {showPass ? 'OCULTAR' : 'VER'}
+                </button>
+              </div>
+
+              {/* Barra de fortaleza */}
+              {password.length > 0 && (
+                <div style={{ marginTop: '10px' }}>
+                  <div style={{ display: 'flex', gap: '4px', marginBottom: '6px' }}>
+                    {[1, 2, 3].map(i => (
+                      <div key={i} style={{
+                        flex: 1, height: '2px',
+                        background: i <= passwordStrength ? strengthColors[passwordStrength] : 'rgba(255,255,255,0.08)',
+                        transition: 'background 0.3s',
+                      }} />
+                    ))}
+                  </div>
+                  <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '10px', color: strengthColors[passwordStrength], letterSpacing: '0.08em' }}>
+                    {strengthLabels[passwordStrength]}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {error && (
+              <div style={{ background: 'rgba(192,57,43,0.08)', border: '1px solid rgba(192,57,43,0.2)', padding: '10px 14px', fontFamily: 'Inter, sans-serif', fontSize: '12px', color: '#c0392b' }}>
+                {error}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              className="btn-primary"
+              disabled={loading}
+              style={{ width: '100%', justifyContent: 'center', marginTop: '4px' }}
+            >
+              {loading ? (
+                <span style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
+                  <span style={{ width: '12px', height: '12px', border: '1px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.8s linear infinite' }} />
+                  Creando cuenta...
+                </span>
+              ) : 'Crear cuenta gratis'}
+            </button>
+          </form>
+
+          <div style={{ marginTop: '28px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '12px', color: '#6b6560' }}>
+              ¿Ya tienes cuenta?{' '}
+              <Link to="/login" style={{ color: '#c9a227', textDecoration: 'none' }}>Ingresar</Link>
+            </p>
+            <Link to="/" style={{ fontFamily: 'Inter, sans-serif', fontSize: '11px', color: '#3d3a35', textDecoration: 'none', letterSpacing: '0.05em', transition: 'color 0.2s' }}
+              onMouseEnter={e => (e.currentTarget.style.color = '#6b6560')}
+              onMouseLeave={e => (e.currentTarget.style.color = '#3d3a35')}>
+              ← Volver
+            </Link>
+          </div>
         </div>
-
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-          <input className="input-field" type="text" placeholder="Nombre" value={name} onChange={e => setName(e.target.value)} />
-          <input className="input-field" type="email" placeholder="Correo electrónico" value={email} onChange={e => setEmail(e.target.value)} />
-          <input className="input-field" type="password" placeholder="Contraseña (mín. 6 caracteres)" value={password} onChange={e => setPassword(e.target.value)} />
-
-          {error && <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '12px', color: '#c0392b' }}>{error}</p>}
-
-          <button type="submit" className="btn-primary" disabled={loading} style={{ width: '100%', justifyContent: 'center' }}>
-            {loading ? 'Creando cuenta...' : 'Crear cuenta gratis'}
-          </button>
-        </form>
-
-        <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '12px', color: '#6b6560', textAlign: 'center', marginTop: '28px' }}>
-          ¿Ya tienes cuenta?{' '}
-          <Link to="/login" style={{ color: '#c9a227', textDecoration: 'none' }}>Ingresar</Link>
-        </p>
       </div>
     </div>
   )
