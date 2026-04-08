@@ -97,7 +97,7 @@ function exportCSV(data: typeof MOCK_ORDERS) {
 function exportRetention() {
   downloadCSV(
     'zairo-films-retencion.csv',
-    'Película,Retención %,Min Abandono,Trailer Vistas,Detalle Vistas,Compras',
+    'Película,Retención %,Min Abandono,Trailer Vistas,Ficha Vistas,Compras',
     RETENTION_DATA.map(m => `"${m.title}",${m.retention}%,${m.dropoff},${m.trailerViews},${m.detailViews},${m.purchases}`)
   )
 }
@@ -269,7 +269,7 @@ export default function Admin() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   {[
                     { label: 'Trailer', value: featuredMovie.trailerViews },
-                    { label: 'Detalle', value: featuredMovie.detailViews },
+                    { label: 'Ficha', value: featuredMovie.detailViews },
                     { label: 'Compra', value: featuredMovie.purchases },
                   ].map((step, i, arr) => (
                     <div key={step.label} style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
@@ -681,7 +681,7 @@ export default function Admin() {
                   </div>
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '120px 120px 120px 120px 1fr', gap: '16px', padding: '0 0 12px', marginBottom: '8px', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-                  {['Retención', 'Trailer', 'Detalle', 'Compras', 'Película'].map(h => <span key={h} style={cell}>{h}</span>)}
+                  {['Retención', 'Trailer', 'Ficha', 'Compras', 'Película'].map(h => <span key={h} style={cell}>{h}</span>)}
                 </div>
                 {RETENTION_DATA.map(m => {
                   const isSelected = selectedMovie === m.id
@@ -723,7 +723,7 @@ export default function Admin() {
                               </div>
                             </div>
                             <div>
-                              <div style={{ fontFamily: 'Inter, sans-serif', fontSize: '9px', color: '#6b6560', letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: '6px' }}>Detalle→compra</div>
+                              <div style={{ fontFamily: 'Inter, sans-serif', fontSize: '9px', color: '#6b6560', letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: '6px' }}>Ficha→compra</div>
                               <div style={{ fontFamily: 'Cormorant Garamond, serif', fontSize: '22px', color: '#c9a227' }}>
                                 {((expandedMovie.purchases / expandedMovie.detailViews) * 100).toFixed(1)}%
                               </div>
@@ -739,7 +739,7 @@ export default function Admin() {
                           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                             {[
                               { label: 'Trailer', value: expandedMovie.trailerViews },
-                              { label: 'Detalle', value: expandedMovie.detailViews },
+                              { label: 'Ficha', value: expandedMovie.detailViews },
                               { label: 'Compra', value: expandedMovie.purchases },
                             ].map((step, i, arr) => (
                               <div key={step.label} style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
