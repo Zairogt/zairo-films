@@ -1,11 +1,11 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { supabase } from '../lib/supabase'
 import { MOVIES } from '../data/movies'
 import MovieCard from '../components/MovieCard'
 import AdCard from '../components/AdCard'
 import Footer from '../components/layout/Footer'
 import type { Movie } from '../data/movies'
 
-// Inserta un AdCard cada AD_EVERY películas
 const AD_EVERY = 3
 
 type GridItem = { type: 'movie'; movie: Movie; idx: number } | { type: 'ad'; key: string }
@@ -24,9 +24,18 @@ function buildGrid(movies: Movie[]): GridItem[] {
 }
 
 export default function Catalogo() {
+  const [movies, setMovies] = useState<Movie[]>(MOVIES)
   const [search, setSearch] = useState('')
 
-  const filtered = MOVIES.filter(m =>
+  useEffect(() => {
+    supabase
+      .from('movies')
+      .select('*')
+      .order('sort_order')
+      .then(({ data }) => { if (data) setMovies(data as Movie[]) })
+  }, [])
+
+  const filtered = movies.filter(m =>
     m.title.toLowerCase().includes(search.toLowerCase())
   )
 

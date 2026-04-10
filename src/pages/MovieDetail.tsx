@@ -1,10 +1,36 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { MOVIES } from '../data/movies'
+import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
 import TrailerModal from '../components/TrailerModal'
 import Footer from '../components/layout/Footer'
+import type { Movie } from '../data/movies'
+
+function toEmbedUrl(url: string): string {
+  try {
+    const u = new URL(url)
+    // youtube.com/watch?v=ID → embed
+    if (u.hostname.includes('youtube.com') && u.pathname === '/watch') {
+      const vid = u.searchParams.get('v')
+      if (vid) return `https://www.youtube.com/embed/${vid}?autoplay=1`
+    }
+    // youtu.be/ID → embed
+    if (u.hostname === 'youtu.be') {
+      return `https://www.youtube.com/embed${u.pathname}?autoplay=1`
+    }
+    // vimeo.com/ID → player.vimeo.com/video/ID
+    if (u.hostname === 'vimeo.com' && !u.hostname.includes('player')) {
+      const id = u.pathname.replace(/^\//, '')
+      return `https://player.vimeo.com/video/${id}?autoplay=1`
+    }
+    // Ya es embed (player.vimeo.com, youtube.com/embed, etc.) — solo añadir autoplay
+    u.searchParams.set('autoplay', '1')
+    return u.toString()
+  } catch {
+    return url
+  }
+}
 
 export default function MovieDetail() {
   const { id } = useParams()
@@ -13,8 +39,37 @@ export default function MovieDetail() {
   const { showToast } = useToast()
   const [playing, setPlaying] = useState(false)
   const [showTrailer, setShowTrailer] = useState(false)
+  const [movie, setMovie] = useState<Movie | null>(null)
+  const [videoUrl, setVideoUrl] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
 
-  const movie = MOVIES.find(m => m.id === id)
+  // Cargar datos de la película
+  useEffect(() => {
+    if (!id) return
+    supabase
+      .from('movies')
+      .select('*')
+      .eq('id', id)
+      .single()
+      .then(({ data }) => { setMovie(data as Movie | null) })
+      .catch(() => { setMovie(null) })
+      .finally(() => setLoading(false))
+  }, [id])
+
+  // Cargar video_url para cualquier usuario logueado
+  // (free = con anuncios, watch/download = sin anuncios — misma URL, distinta experiencia)
+  useEffect(() => {
+    if (!id || !user) return
+
+    supabase
+      .from('movie_secure')
+      .select('video_url')
+      .eq('movie_id', id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data?.video_url) setVideoUrl(data.video_url)
+      })
+  }, [id, user])
 
   const handleShare = useCallback(() => {
     const url = window.location.href
@@ -25,6 +80,15 @@ export default function MovieDetail() {
       showToast('Link copiado al portapapeles')
     }
   }, [movie?.title, showToast])
+
+  if (loading) return (
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <p style={{ color: '#3d3a35', fontFamily: 'Cormorant Garamond, serif', fontSize: '20px', fontStyle: 'italic' }}>
+        Cargando…
+      </p>
+    </div>
+  )
+
   if (!movie) return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <p style={{ color: '#6b6560', fontFamily: 'Cormorant Garamond, serif', fontSize: '24px' }}>
@@ -40,7 +104,7 @@ export default function MovieDetail() {
       {/* Backdrop hero */}
       <div style={{
         position: 'relative',
-        height: 'clamp(280px, 44vw, 480px)', /* ~16:9 proporcional, cap en 480px */
+        height: 'clamp(280px, 44vw, 480px)',
         overflow: 'hidden',
         background: '#080808',
         marginTop: '72px',
@@ -58,26 +122,20 @@ export default function MovieDetail() {
           }}
         />
 
-        {/* Viñeta radial */}
         <div style={{
           position: 'absolute', inset: 0,
           background: 'radial-gradient(ellipse at 60% 50%, transparent 25%, rgba(8,8,8,0.55) 100%)',
         }} />
-
-        {/* Gradiente izquierdo */}
         <div style={{
           position: 'absolute', inset: 0,
           background: 'linear-gradient(to right, rgba(8,8,8,0.9) 0%, rgba(8,8,8,0.4) 45%, transparent 75%)',
         }} />
-
-        {/* Fade al negro abajo */}
         <div style={{
           position: 'absolute', bottom: 0, left: 0, right: 0,
           height: '65%',
           background: 'linear-gradient(to top, #080808 0%, rgba(8,8,8,0.7) 40%, transparent 100%)',
         }} />
 
-        {/* Título anclado abajo-izquierda */}
         <div className="hero-content" style={{
           position: 'absolute',
           bottom: 'clamp(20px, 3.5vw, 44px)',
@@ -110,7 +168,6 @@ export default function MovieDetail() {
             "{movie.tagline}"
           </p>
 
-          {/* CTA buttons */}
           <div style={{ display: 'flex', gap: '12px', marginTop: '28px', flexWrap: 'wrap' }}>
             {movie.trailer_url && (
               <button
@@ -170,12 +227,10 @@ export default function MovieDetail() {
                 position: 'relative',
                 overflow: 'hidden',
               }}>
-                {/* Línea dorada top */}
                 <div style={{
                   height: '1px',
                   background: 'linear-gradient(to right, transparent, rgba(201,162,39,0.2), transparent)',
                 }} />
-
                 <div style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -183,46 +238,28 @@ export default function MovieDetail() {
                   padding: '8px 14px 6px',
                 }}>
                   <span style={{
-                    fontFamily: 'Inter, sans-serif',
-                    fontSize: '8px',
-                    fontWeight: 500,
-                    letterSpacing: '0.2em',
-                    textTransform: 'uppercase',
-                    color: '#2e2b26',
+                    fontFamily: 'Inter, sans-serif', fontSize: '8px',
+                    fontWeight: 500, letterSpacing: '0.2em',
+                    textTransform: 'uppercase', color: '#2e2b26',
                   }}>Publicidad</span>
                   <span style={{
-                    fontFamily: 'Inter, sans-serif',
-                    fontSize: '8px',
-                    color: '#2e2b26',
-                    letterSpacing: '0.08em',
+                    fontFamily: 'Inter, sans-serif', fontSize: '8px',
+                    color: '#2e2b26', letterSpacing: '0.08em',
                   }}>Google AdSense</span>
                 </div>
-
-                {/* Slot del anuncio — reemplazar en producción con AdSense unit */}
                 <div style={{
                   height: '90px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
                   background: 'repeating-linear-gradient(90deg, transparent, transparent 80px, rgba(255,255,255,0.008) 80px, rgba(255,255,255,0.008) 81px)',
                 }}>
-                  {/* PRODUCCIÓN:
-                  <ins className="adsbygoogle"
-                    style={{ display: 'block', width: '100%', height: '90px' }}
-                    data-ad-client="ca-pub-XXXXX"
-                    data-ad-slot="XXXXX"
-                    data-ad-format="horizontal"
-                  /> */}
+                  {/* PRODUCCIÓN: insertar unidad de AdSense aquí */}
                   <span style={{
-                    fontFamily: 'Cormorant Garamond, serif',
-                    fontSize: '13px',
-                    fontStyle: 'italic',
-                    color: '#1e1c18',
+                    fontFamily: 'Cormorant Garamond, serif', fontSize: '13px',
+                    fontStyle: 'italic', color: '#1e1c18',
                   }}>
                     728 × 90 — Leaderboard
                   </span>
                 </div>
-
                 <div style={{
                   height: '1px',
                   background: 'linear-gradient(to right, transparent, rgba(255,255,255,0.03), transparent)',
@@ -326,13 +363,14 @@ export default function MovieDetail() {
                 </div>
               )}
 
-              {access === 'free' && playing && (
+              {access === 'free' && playing && videoUrl && (
                 <div>
                   <div style={{ aspectRatio: '16/9', position: 'relative' }}>
                     <iframe
-                      src={movie.video_url + '?autoplay=1'}
+                      src={toEmbedUrl(videoUrl)}
                       style={{ width: '100%', height: '100%', border: 'none' }}
-                      allow="autoplay; fullscreen"
+                      allow="autoplay; fullscreen; picture-in-picture"
+                      allowFullScreen
                       title={movie.title}
                     />
                     <div style={{
@@ -369,12 +407,25 @@ export default function MovieDetail() {
               {(access === 'watch' || access === 'download') && (
                 <div>
                   <div style={{ aspectRatio: '16/9' }}>
-                    <iframe
-                      src={movie.video_url + '?autoplay=1'}
-                      style={{ width: '100%', height: '100%', border: 'none' }}
-                      allow="autoplay; fullscreen"
-                      title={movie.title}
-                    />
+                    {videoUrl ? (
+                      <iframe
+                        src={toEmbedUrl(videoUrl)}
+                        style={{ width: '100%', height: '100%', border: 'none' }}
+                        allow="autoplay; fullscreen; picture-in-picture"
+                        allowFullScreen
+                        title={movie.title}
+                      />
+                    ) : (
+                      <div style={{
+                        width: '100%', height: '100%',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        background: '#0a0a0a',
+                      }}>
+                        <p style={{ color: '#3d3a35', fontFamily: 'Inter, sans-serif', fontSize: '12px' }}>
+                          Cargando video…
+                        </p>
+                      </div>
+                    )}
                   </div>
                   <div style={{
                     padding: '14px 18px', background: 'rgba(201,162,39,0.04)',
@@ -396,7 +447,7 @@ export default function MovieDetail() {
                         Upgrade + Descargar · ${movie.precio_descargar}
                       </button>
                     ) : (
-                      <a href={movie.video_url} download style={{
+                      <a href={videoUrl ?? '#'} download style={{
                         fontFamily: 'Inter, sans-serif', fontSize: '10px',
                         letterSpacing: '0.12em', textTransform: 'uppercase',
                         color: '#c9a227', textDecoration: 'none',
@@ -453,9 +504,7 @@ export default function MovieDetail() {
                   textTransform: 'uppercase', color: '#c9a227', marginBottom: '20px',
                 }}>Acceso</p>
 
-                <div style={{
-                  padding: '18px', border: '1px solid rgba(255,255,255,0.06)', marginBottom: '12px',
-                }}>
+                <div style={{ padding: '18px', border: '1px solid rgba(255,255,255,0.06)', marginBottom: '12px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
                     <span style={{ fontFamily: 'Cormorant Garamond, serif', fontSize: '17px', color: '#e8e3d9' }}>
                       Ver sin anuncios
