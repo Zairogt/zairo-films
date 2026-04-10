@@ -1,11 +1,50 @@
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
-import { MOVIES } from '../data/movies'
 import Footer from '../components/layout/Footer'
+import type { Movie } from '../data/movies'
 
 export default function MiCuenta() {
   const { user, purchases, logout } = useAuth()
   const navigate = useNavigate()
+  const [movieMap, setMovieMap] = useState<Record<string, Movie>>({})
+  const [secureMap, setSecureMap] = useState<Record<string, string>>({})
+  const [loadingMovies, setLoadingMovies] = useState(false)
+
+  useEffect(() => {
+    if (purchases.length === 0) return
+    setLoadingMovies(true)
+
+    const ids = purchases.map(p => p.movieId)
+
+    const moviesQuery = supabase
+      .from('movies')
+      .select('*')
+      .in('id', ids)
+      .then(({ data }) => {
+        if (!data) return
+        const map: Record<string, Movie> = {}
+        data.forEach((m: any) => { map[m.id] = m as Movie })
+        setMovieMap(map)
+      })
+
+    const downloadIds = purchases.filter(p => p.tier === 'download').map(p => p.movieId)
+    const secureQuery = downloadIds.length > 0
+      ? supabase
+          .from('movie_secure')
+          .select('movie_id, video_url')
+          .in('movie_id', downloadIds)
+          .then(({ data }) => {
+            if (!data) return
+            const map: Record<string, string> = {}
+            data.forEach((s: any) => { map[s.movie_id] = s.video_url })
+            setSecureMap(map)
+          })
+      : Promise.resolve()
+
+    Promise.all([moviesQuery, secureQuery]).finally(() => setLoadingMovies(false))
+  }, [purchases])
 
   if (!user) { navigate('/login'); return null }
 
@@ -52,9 +91,7 @@ export default function MiCuenta() {
             ['Descargas disponibles', purchases.filter(p => p.tier === 'download').length],
             ['Total invertido', `$${purchases.reduce((s, p) => s + p.amount, 0)}`],
           ].map(([label, val]) => (
-            <div key={String(label)} style={{
-              background: '#0e0e0e', padding: '28px 32px',
-            }}>
+            <div key={String(label)} style={{ background: '#0e0e0e', padding: '28px 32px' }}>
               <div style={{
                 fontFamily: 'Cormorant Garamond, serif',
                 fontSize: '36px', fontWeight: 300, color: '#c9a227',
@@ -96,31 +133,47 @@ export default function MiCuenta() {
                 Ver catálogo
               </button>
             </div>
+          ) : loadingMovies ? (
+            <div style={{ padding: '40px 0', textAlign: 'center' }}>
+              <p style={{
+                fontFamily: 'Cormorant Garamond, serif', fontSize: '18px',
+                fontWeight: 300, fontStyle: 'italic', color: '#3d3a35',
+              }}>Cargando películas…</p>
+            </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1px', background: 'rgba(255,255,255,0.04)' }}>
               {purchases.map(p => {
-                const movie = MOVIES.find(m => m.id === p.movieId)
-                if (!movie) return null
+                const movie = movieMap[p.movieId]
+                const downloadUrl = secureMap[p.movieId]
                 return (
                   <div key={p.movieId} style={{
                     background: '#0e0e0e',
                     padding: '20px 24px',
                     display: 'grid',
-                    gridTemplateColumns: '48px 1fr auto auto',
+                    gridTemplateColumns: '56px 1fr auto auto',
                     gap: '16px',
                     alignItems: 'center',
                   }}>
                     {/* Mini poster */}
                     <div style={{
-                      width: '48px', height: '64px',
-                      background: movie.backdrop, flexShrink: 0,
-                    }} />
+                      width: '56px', height: '72px', flexShrink: 0,
+                      background: movie?.backdrop ?? '#111',
+                      overflow: 'hidden', borderRadius: '1px',
+                    }}>
+                      {movie?.poster_url && (
+                        <img
+                          src={movie.poster_url}
+                          alt=""
+                          style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                        />
+                      )}
+                    </div>
 
                     <div>
                       <p style={{
                         fontFamily: 'Cormorant Garamond, serif',
-                        fontSize: '18px', fontWeight: 400, color: '#e8e3d9',
-                      }}>{movie.title}</p>
+                        fontSize: '18px', fontWeight: 400, color: movie ? '#e8e3d9' : '#3d3a35',
+                      }}>{movie?.title ?? `Película ${p.movieId.slice(0, 8)}…`}</p>
                       <p style={{
                         fontFamily: 'Inter, sans-serif', fontSize: '11px',
                         color: '#6b6560', marginTop: '4px',
@@ -139,14 +192,15 @@ export default function MiCuenta() {
                       <button
                         className="btn-ghost"
                         style={{ padding: '8px 16px', fontSize: '10px' }}
-                        onClick={() => navigate(`/pelicula/${movie.id}`)}
+                        onClick={() => navigate(`/pelicula/${p.movieId}`)}
                       >
                         Ver
                       </button>
-                      {p.tier === 'download' && (
+                      {p.tier === 'download' && downloadUrl && (
                         <a
-                          href={movie.video_url}
-                          download
+                          href={downloadUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
                           style={{
                             fontFamily: 'Inter, sans-serif',
                             fontSize: '10px', letterSpacing: '0.1em',
@@ -155,7 +209,10 @@ export default function MiCuenta() {
                             border: '1px solid rgba(201,162,39,0.3)',
                             padding: '8px 16px',
                             transition: 'all 0.2s',
+                            display: 'inline-flex', alignItems: 'center',
                           }}
+                          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(201,162,39,0.08)' }}
+                          onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
                         >
                           Descargar
                         </a>

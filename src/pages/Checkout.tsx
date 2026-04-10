@@ -1,25 +1,54 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
-import { MOVIES } from '../data/movies'
+import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
+import type { Movie } from '../data/movies'
 
 export default function Checkout() {
   const { id } = useParams()
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   const { user, buyMovie } = useAuth()
+  const { showToast } = useToast()
 
-  const movie = MOVIES.find(m => m.id === id)
+  const [movie, setMovie] = useState<Movie | null>(null)
+  const [movieLoading, setMovieLoading] = useState(true)
   const defaultTier = searchParams.get('tier') === 'download' ? 'download' : 'watch'
   const [tier, setTier] = useState<'watch' | 'download'>(defaultTier)
   const [card, setCard] = useState({ number: '', expiry: '', cvc: '', name: '' })
   const [loading, setLoading] = useState(false)
   const [done, setDone] = useState(false)
-  const { showToast } = useToast()
+
+  useEffect(() => {
+    if (!id) return
+    supabase
+      .from('movies')
+      .select('*')
+      .eq('id', id)
+      .single()
+      .then(({ data }) => { setMovie(data as Movie | null) })
+      .catch(() => { setMovie(null) })
+      .finally(() => setMovieLoading(false))
+  }, [id])
 
   if (!user) { navigate('/login'); return null }
-  if (!movie) return null
+
+  if (movieLoading) return (
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <p style={{ fontFamily: 'Cormorant Garamond, serif', fontSize: '20px', fontWeight: 300, fontStyle: 'italic', color: '#3d3a35' }}>
+        Cargando…
+      </p>
+    </div>
+  )
+
+  if (!movie) return (
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <p style={{ fontFamily: 'Cormorant Garamond, serif', fontSize: '24px', fontWeight: 300, color: '#6b6560' }}>
+        Película no encontrada.
+      </p>
+    </div>
+  )
 
   const price = tier === 'watch' ? movie.precio_ver : movie.precio_descargar
 
@@ -109,7 +138,7 @@ export default function Checkout() {
               {([
                 ['watch', `Ver sin anuncios`, movie.precio_ver, 'Acceso ilimitado · sin publicidad'],
                 ['download', `Ver + Descargar`, movie.precio_descargar, 'Incluye archivo de descarga permanente'],
-              ] as const).map(([t, label, price, desc]) => (
+              ] as const).map(([t, label, p, desc]) => (
                 <div
                   key={t}
                   onClick={() => setTier(t)}
@@ -137,7 +166,7 @@ export default function Checkout() {
                   <span style={{
                     fontFamily: 'Cormorant Garamond, serif',
                     fontSize: '22px', color: '#c9a227',
-                  }}>${price}</span>
+                  }}>${p}</span>
                 </div>
               ))}
             </div>
@@ -229,16 +258,18 @@ export default function Checkout() {
             marginBottom: '24px',
           }}>Resumen</p>
 
-          {/* Movie poster mini */}
+          {/* Movie poster */}
           <div style={{
             width: '100%', aspectRatio: '16/9',
             background: movie.backdrop, marginBottom: '20px',
             overflow: 'hidden', position: 'relative',
           }}>
-            <img src={movie.poster_url} alt={movie.title} style={{
-              width: '100%', height: '100%',
-              objectFit: 'cover', display: 'block',
-            }} />
+            {movie.poster_url && (
+              <img src={movie.poster_url} alt={movie.title} style={{
+                width: '100%', height: '100%',
+                objectFit: 'cover', display: 'block',
+              }} />
+            )}
           </div>
 
           <p style={{
