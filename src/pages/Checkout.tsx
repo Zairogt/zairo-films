@@ -113,6 +113,22 @@ export default function Checkout() {
 
         {/* Left — form */}
         <div>
+          <button
+            onClick={() => navigate(`/pelicula/${id}`)}
+            style={{
+              background: 'transparent', border: 'none', cursor: 'pointer',
+              fontFamily: 'Inter, sans-serif', fontSize: '11px',
+              color: '#3d3a35', letterSpacing: '0.08em',
+              padding: 0, marginBottom: '32px',
+              display: 'flex', alignItems: 'center', gap: '6px',
+              transition: 'color 0.2s',
+            }}
+            onMouseEnter={e => (e.currentTarget.style.color = '#6b6560')}
+            onMouseLeave={e => (e.currentTarget.style.color = '#3d3a35')}
+          >
+            ← Volver a la película
+          </button>
+
           <span className="anim" style={{
             fontFamily: 'Inter, sans-serif', fontSize: '10px',
             fontWeight: 500, letterSpacing: '0.25em',
