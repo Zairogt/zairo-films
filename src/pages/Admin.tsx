@@ -387,7 +387,7 @@ export default function Admin() {
                 year: new Date().getFullYear(),
                 duration: '0h 00min',
                 genre: 'Drama',
-                director: 'Rodolfo Espinoza Orantes',
+                director: 'Rodolfo Espinosa Orantes',
                 backdrop: 'linear-gradient(135deg, #111 0%, #1a1a1a 100%)',
                 precio_ver: 10,
                 precio_descargar: 20,

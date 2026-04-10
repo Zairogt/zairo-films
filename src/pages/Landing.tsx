@@ -221,7 +221,7 @@ export default function Landing() {
               fontWeight: 300, color: '#e8e3d9',
               marginTop: '12px', lineHeight: 1.15,
             }}>
-              Rodolfo Espinoza<br />
+              Rodolfo Espinosa<br />
               <em style={{ fontStyle: 'italic', color: 'rgba(232,227,217,0.45)' }}>Orantes</em>
             </h2>
             <div style={{ width: '36px', height: '1px', background: '#c9a227', margin: '20px 0' }} />

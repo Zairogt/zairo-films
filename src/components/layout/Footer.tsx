@@ -20,7 +20,7 @@ export default function Footer() {
             fontWeight: 300, color: '#6b6560', lineHeight: 1.7,
           }}>
             Cine independiente centroamericano.<br />
-            Por Rodolfo Espinoza Orantes.
+            Por Rodolfo Espinosa Orantes.
           </p>
         </div>
 
@@ -69,7 +69,7 @@ export default function Footer() {
         alignItems: 'center', flexWrap: 'wrap', gap: '8px',
       }}>
         <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '11px', color: '#3d3a35' }}>
-          © {new Date().getFullYear()} Rodolfo Espinoza Orantes · Zairo Films
+          © {new Date().getFullYear()} Rodolfo Espinosa Orantes · Zairo Films
         </p>
       </div>
     </footer>
