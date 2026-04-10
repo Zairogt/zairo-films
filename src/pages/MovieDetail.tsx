@@ -46,11 +46,9 @@ export default function MovieDetail() {
   // Cargar datos de la película
   useEffect(() => {
     if (!id) return
-    supabase
-      .from('movies')
-      .select('*')
-      .eq('id', id)
-      .single()
+    Promise.resolve(
+      supabase.from('movies').select('*').eq('id', id).single()
+    )
       .then(({ data }) => { setMovie(data as Movie | null) })
       .catch(() => { setMovie(null) })
       .finally(() => setLoading(false))

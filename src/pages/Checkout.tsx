@@ -22,11 +22,9 @@ export default function Checkout() {
 
   useEffect(() => {
     if (!id) return
-    supabase
-      .from('movies')
-      .select('*')
-      .eq('id', id)
-      .single()
+    Promise.resolve(
+      supabase.from('movies').select('*').eq('id', id).single()
+    )
       .then(({ data }) => { setMovie(data as Movie | null) })
       .catch(() => { setMovie(null) })
       .finally(() => setMovieLoading(false))
