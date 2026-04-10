@@ -10,7 +10,7 @@ function readProfileCache(id: string): { name: string; isAdmin: boolean } | null
     const raw = localStorage.getItem(PROFILE_KEY)
     if (!raw) return null
     const p = JSON.parse(raw)
-    return p.id === id ? p : null  // Ignorar cache si es de otro usuario
+    return p.id === id ? p : null
   } catch { return null }
 }
 
@@ -42,10 +42,14 @@ interface AuthCtx {
   user: AuthUser | null
   purchases: Purchase[]
   loading: boolean
+  recoveryMode: boolean
+  clearRecoveryMode: () => void
   login: (email: string, password: string) => Promise<void>
   signup: (email: string, password: string, name: string) => Promise<{ needsConfirmation: boolean }>
   loginWithGoogle: () => Promise<void>
   logout: () => Promise<void>
+  resetPasswordForEmail: (email: string) => Promise<void>
+  updatePassword: (password: string) => Promise<void>
   buyMovie: (movieId: string, tier: 'watch' | 'download', amount: number) => Promise<void>
   getAccess: (movieId: string) => AccessTier
 }
@@ -56,6 +60,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null)
   const [purchases, setPurchases] = useState<Purchase[]>([])
   const [loading, setLoading] = useState(true)
+  // recoveryMode: true cuando Supabase redirige desde un link de reset de contraseña.
+  // Un componente en App.tsx lo observa y navega a /reset-password.
+  const [recoveryMode, setRecoveryMode] = useState(false)
 
   useEffect(() => {
     const timeout = setTimeout(() => setLoading(false), 8000)
@@ -67,24 +74,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             const { id, email, user_metadata } = session.user
 
             if (event === 'INITIAL_SESSION') {
-              // Recarga: usar cache solo si el ID coincide exactamente
               const cached = readProfileCache(id)
               if (cached) {
                 setUser({ id, email: email!, name: cached.name, isAdmin: cached.isAdmin })
                 setLoading(false)
-                // Validar perfil y compras en background (sin bloquear)
                 loadUser(id, email!, user_metadata)
                 clearTimeout(timeout)
                 return
               }
-              // Sin cache — cargar desde Supabase
               await loadUser(id, email!, user_metadata)
+            } else if (event === 'PASSWORD_RECOVERY') {
+              // El usuario llegó desde el link del email de reset.
+              // IMPORTANTE con HashRouter: redirectTo debe ser window.location.origin (sin hash),
+              // igual que OAuth, para que supabase-js pueda leer el token de la URL.
+              // Cargamos el usuario y activamos recoveryMode — App.tsx redirigirá a /reset-password.
+              await loadUser(id, email!, user_metadata)
+              setRecoveryMode(true)
             } else if (event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
-              // Refresh silencioso — no borrar estado, solo actualizar en background
+              // Refresh silencioso — no borrar estado
               loadUser(id, email!, user_metadata)
             } else {
-              // SIGNED_IN: nuevo login — limpiar sesión previa para evitar
-              // que quede visible la sesión de otro usuario
+              // SIGNED_IN: nuevo login — limpiar sesión previa
               setUser(null)
               setPurchases([])
               clearProfileCache()
@@ -114,12 +124,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     metadata: Record<string, unknown>
   ) {
     try {
-      // Timeout de 5s por si Supabase no responde
       const abort = new Promise<never>((_, reject) =>
         setTimeout(() => reject(new Error('timeout')), 5000)
       )
 
-      // Fetch perfil y compras en paralelo
       const [profileRes, purchasesRes] = await Promise.race([
         Promise.all([
           supabase.from('profiles').select('name, is_admin').eq('id', id).maybeSingle(),
@@ -132,7 +140,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       let isAdmin = false
 
       if (!profileRes.data) {
-        // Crear perfil si no existe (trigger no corrió)
         const { data: created } = await supabase
           .from('profiles')
           .upsert({ id, name, email }, { onConflict: 'id' })
@@ -156,7 +163,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }))
       )
     } catch {
-      // Timeout o error — el usuario queda como no-admin
+      // Timeout o error de red
     } finally {
       setLoading(false)
     }
@@ -178,13 +185,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const loginWithGoogle = async () => {
-    // redirectTo debe ser el origin sin hash — con HashRouter el ?code=xxx de PKCE
+    // redirectTo = origin limpio (sin hash) — con HashRouter el ?code= de PKCE
     // quedaría dentro del hash y supabase-js no podría leerlo.
-    // La Landing detecta el código y redirige a /catalogo automáticamente.
     await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: { redirectTo: window.location.origin },
     })
+  }
+
+  const resetPasswordForEmail = async (email: string) => {
+    // Mismo patrón que OAuth: redirectTo = origin sin hash.
+    // Supabase añade ?token_hash=...&type=recovery como query params,
+    // que son accesibles aunque la app use HashRouter.
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin,
+    })
+    if (error) throw error
+  }
+
+  const updatePassword = async (password: string) => {
+    const { error } = await supabase.auth.updateUser({ password })
+    if (error) throw error
   }
 
   const logout = async () => {
@@ -192,7 +213,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null)
     setPurchases([])
     clearProfileCache()
+    setRecoveryMode(false)
   }
+
+  const clearRecoveryMode = () => setRecoveryMode(false)
 
   const buyMovie = async (movieId: string, tier: 'watch' | 'download', amount: number) => {
     if (!user) throw new Error('No autenticado')
@@ -226,7 +250,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   return (
     <AuthContext.Provider value={{
       user, purchases, loading,
-      login, signup, loginWithGoogle, logout, buyMovie, getAccess,
+      recoveryMode, clearRecoveryMode,
+      login, signup, loginWithGoogle, logout,
+      resetPasswordForEmail, updatePassword,
+      buyMovie, getAccess,
     }}>
       {children}
     </AuthContext.Provider>

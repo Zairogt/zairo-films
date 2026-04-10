@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import type { FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
@@ -9,7 +9,7 @@ import { MOVIES } from '../data/movies'
 const BG_MOVIE = MOVIES[0] // Bajo el Sol de Septiembre
 
 export default function Login() {
-  const { login, loginWithGoogle } = useAuth()
+  const { login, loginWithGoogle, resetPasswordForEmail, user } = useAuth()
   const { showToast } = useToast()
   const navigate = useNavigate()
   const [email, setEmail] = useState('')
@@ -17,6 +17,16 @@ export default function Login() {
   const [showPass, setShowPass] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+
+  // Flujo de recuperación de contraseña
+  const [forgotMode, setForgotMode] = useState(false)
+  const [forgotEmail, setForgotEmail] = useState('')
+  const [forgotLoading, setForgotLoading] = useState(false)
+  const [forgotSent, setForgotSent] = useState(false)
+  const [forgotError, setForgotError] = useState('')
+
+  // Redirigir si ya hay sesión activa (ej: después de OAuth de Google)
+  useEffect(() => { if (user) navigate('/catalogo') }, [user, navigate])
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
@@ -33,11 +43,20 @@ export default function Login() {
     }
   }
 
-  const handleGoogle = useCallback((profile: { email: string; name: string; picture: string; sub: string }) => {
-    loginWithGoogle(profile)
-    showToast(`Bienvenido, ${profile.name.split(' ')[0]}`)
-    navigate('/catalogo')
-  }, [loginWithGoogle, showToast, navigate])
+  const handleForgot = async (e: FormEvent) => {
+    e.preventDefault()
+    if (!forgotEmail) { setForgotError('Ingresa tu correo.'); return }
+    setForgotLoading(true); setForgotError('')
+    try {
+      await resetPasswordForEmail(forgotEmail)
+      setForgotSent(true)
+    } catch {
+      setForgotError('No se pudo enviar el correo. Verifica la dirección.')
+    } finally {
+      setForgotLoading(false)
+    }
+  }
+
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex' }}>
@@ -126,113 +145,187 @@ export default function Login() {
         </div>
 
         <div className="anim">
-          <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '10px', fontWeight: 500, letterSpacing: '0.25em', textTransform: 'uppercase', color: '#c9a227' }}>
-            Bienvenido de vuelta
-          </span>
-          <h1 style={{ fontFamily: 'Cormorant Garamond, serif', fontSize: 'clamp(32px, 4vw, 44px)', fontWeight: 300, color: '#e8e3d9', marginTop: '10px', marginBottom: '6px', lineHeight: 1.1 }}>
-            Ingresar
-          </h1>
-          <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '12px', color: '#6b6560', letterSpacing: '0.03em', marginBottom: '36px' }}>
-            Accede al catálogo completo de Zairo Films
-          </p>
-
-          {/* Google */}
-          <GoogleButton onSuccess={handleGoogle} label="Continuar con Google" />
-
-          {/* Separador */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', margin: '24px 0' }}>
-            <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.07)' }} />
-            <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '10px', color: '#3d3a35', letterSpacing: '0.1em', textTransform: 'uppercase' }}>o con email</span>
-            <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.07)' }} />
-          </div>
-
-          {/* Demo hint */}
-          <div style={{ background: 'rgba(201,162,39,0.05)', border: '1px solid rgba(201,162,39,0.12)', padding: '10px 14px', marginBottom: '28px', fontFamily: 'Inter, sans-serif', fontSize: '11px', color: '#8b7355', lineHeight: 1.6 }}>
-            <strong style={{ color: '#c9a227' }}>Demo:</strong> cualquier email/contraseña · Admin: <span style={{ color: '#c9a227' }}>admin@zairofilms.com</span>
-          </div>
-
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            {/* Email */}
-            <div>
-              <label style={{ fontFamily: 'Inter, sans-serif', fontSize: '10px', letterSpacing: '0.15em', textTransform: 'uppercase', color: '#6b6560', display: 'block', marginBottom: '8px' }}>
-                Correo electrónico
-              </label>
-              <input
-                className="input-field"
-                type="email"
-                placeholder="tu@email.com"
-                value={email}
-                onChange={e => { setEmail(e.target.value); setError('') }}
-                style={{ width: '100%' }}
-              />
-            </div>
-
-            {/* Password con toggle */}
-            <div>
-              <label style={{ fontFamily: 'Inter, sans-serif', fontSize: '10px', letterSpacing: '0.15em', textTransform: 'uppercase', color: '#6b6560', display: 'block', marginBottom: '8px' }}>
-                Contraseña
-              </label>
-              <div style={{ position: 'relative' }}>
-                <input
-                  className="input-field"
-                  type={showPass ? 'text' : 'password'}
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={e => { setPassword(e.target.value); setError('') }}
-                  style={{ width: '100%', paddingRight: '48px' }}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPass(!showPass)}
-                  style={{
-                    position: 'absolute', right: '0', top: '50%',
-                    transform: 'translateY(-50%)',
-                    background: 'transparent', border: 'none',
-                    color: '#6b6560', cursor: 'pointer',
-                    fontFamily: 'Inter, sans-serif', fontSize: '10px',
-                    letterSpacing: '0.08em', padding: '0 4px',
-                    transition: 'color 0.2s',
-                  }}
-                  onMouseEnter={e => (e.currentTarget.style.color = '#e8e3d9')}
-                  onMouseLeave={e => (e.currentTarget.style.color = '#6b6560')}
-                >
-                  {showPass ? 'OCULTAR' : 'VER'}
-                </button>
-              </div>
-            </div>
-
-            {error && (
-              <div style={{ background: 'rgba(192,57,43,0.08)', border: '1px solid rgba(192,57,43,0.2)', padding: '10px 14px', fontFamily: 'Inter, sans-serif', fontSize: '12px', color: '#c0392b' }}>
-                {error}
-              </div>
-            )}
-
-            <button
-              type="submit"
-              className="btn-primary"
-              disabled={loading}
-              style={{ width: '100%', justifyContent: 'center', marginTop: '4px' }}
-            >
-              {loading ? (
-                <span style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
-                  <span style={{ width: '12px', height: '12px', border: '1px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.8s linear infinite' }} />
-                  Ingresando...
+          {forgotMode ? (
+            /* ── Panel: recuperar contraseña ── */
+            <>
+              <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '10px', fontWeight: 500, letterSpacing: '0.25em', textTransform: 'uppercase', color: '#c9a227' }}>
+                Recuperar acceso
+              </span>
+              <h1 style={{ fontFamily: 'Cormorant Garamond, serif', fontSize: 'clamp(28px, 4vw, 40px)', fontWeight: 300, color: '#e8e3d9', marginTop: '10px', marginBottom: '6px', lineHeight: 1.1 }}>
+                ¿Olvidaste tu contraseña?
+              </h1>
+              <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '12px', color: '#6b6560', marginBottom: '36px', lineHeight: 1.7 }}>
+                Te enviaremos un enlace para restablecerla.<br />
+                <span style={{ color: '#3d3a35', fontSize: '11px' }}>
+                  ⚠ El enlace abre la app directamente — asegúrate de revisar el email en el mismo dispositivo donde usas Zairo Films.
                 </span>
-              ) : 'Ingresar'}
-            </button>
-          </form>
+              </p>
 
-          <div style={{ marginTop: '28px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '12px', color: '#6b6560' }}>
-              ¿No tienes cuenta?{' '}
-              <Link to="/signup" style={{ color: '#c9a227', textDecoration: 'none' }}>Registrarse</Link>
-            </p>
-            <Link to="/" style={{ fontFamily: 'Inter, sans-serif', fontSize: '11px', color: '#3d3a35', textDecoration: 'none', letterSpacing: '0.05em', transition: 'color 0.2s' }}
-              onMouseEnter={e => (e.currentTarget.style.color = '#6b6560')}
-              onMouseLeave={e => (e.currentTarget.style.color = '#3d3a35')}>
-              ← Volver
-            </Link>
-          </div>
+              {forgotSent ? (
+                <div style={{ background: 'rgba(76,175,80,0.06)', border: '1px solid rgba(76,175,80,0.2)', padding: '20px', textAlign: 'center' }}>
+                  <div style={{ fontFamily: 'Cormorant Garamond, serif', fontSize: '32px', color: '#4caf50', marginBottom: '8px' }}>✓</div>
+                  <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '12px', color: '#9e9890', lineHeight: 1.7 }}>
+                    Enviamos el enlace a<br />
+                    <strong style={{ color: '#e8e3d9' }}>{forgotEmail}</strong>
+                  </p>
+                  <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '11px', color: '#3d3a35', marginTop: '12px', lineHeight: 1.6 }}>
+                    Revisa tu bandeja de entrada y spam.<br />El enlace expira en 1 hora.
+                  </p>
+                </div>
+              ) : (
+                <form onSubmit={handleForgot} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                  <div>
+                    <label style={{ fontFamily: 'Inter, sans-serif', fontSize: '10px', letterSpacing: '0.15em', textTransform: 'uppercase', color: '#6b6560', display: 'block', marginBottom: '8px' }}>
+                      Correo electrónico
+                    </label>
+                    <input
+                      className="input-field"
+                      type="email"
+                      placeholder="tu@email.com"
+                      value={forgotEmail}
+                      onChange={e => { setForgotEmail(e.target.value); setForgotError('') }}
+                      style={{ width: '100%' }}
+                      autoFocus
+                    />
+                  </div>
+
+                  {forgotError && (
+                    <div style={{ background: 'rgba(192,57,43,0.08)', border: '1px solid rgba(192,57,43,0.2)', padding: '10px 14px', fontFamily: 'Inter, sans-serif', fontSize: '12px', color: '#c0392b' }}>
+                      {forgotError}
+                    </div>
+                  )}
+
+                  <button
+                    type="submit"
+                    className="btn-primary"
+                    disabled={forgotLoading}
+                    style={{ width: '100%', justifyContent: 'center' }}
+                  >
+                    {forgotLoading ? (
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
+                        <span style={{ width: '12px', height: '12px', border: '1px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.8s linear infinite' }} />
+                        Enviando…
+                      </span>
+                    ) : 'Enviar enlace'}
+                  </button>
+                </form>
+              )}
+
+              <button
+                onClick={() => { setForgotMode(false); setForgotSent(false); setForgotError('') }}
+                style={{ background: 'transparent', border: 'none', cursor: 'pointer', marginTop: '28px', fontFamily: 'Inter, sans-serif', fontSize: '12px', color: '#3d3a35', padding: 0, transition: 'color 0.2s' }}
+                onMouseEnter={e => (e.currentTarget.style.color = '#6b6560')}
+                onMouseLeave={e => (e.currentTarget.style.color = '#3d3a35')}
+              >
+                ← Volver al login
+              </button>
+            </>
+          ) : (
+            /* ── Panel: login normal ── */
+            <>
+              <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '10px', fontWeight: 500, letterSpacing: '0.25em', textTransform: 'uppercase', color: '#c9a227' }}>
+                Bienvenido de vuelta
+              </span>
+              <h1 style={{ fontFamily: 'Cormorant Garamond, serif', fontSize: 'clamp(32px, 4vw, 44px)', fontWeight: 300, color: '#e8e3d9', marginTop: '10px', marginBottom: '6px', lineHeight: 1.1 }}>
+                Ingresar
+              </h1>
+              <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '12px', color: '#6b6560', letterSpacing: '0.03em', marginBottom: '36px' }}>
+                Accede al catálogo completo de Zairo Films
+              </p>
+
+              <GoogleButton onClick={loginWithGoogle} label="Continuar con Google" />
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', margin: '24px 0' }}>
+                <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.07)' }} />
+                <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '10px', color: '#3d3a35', letterSpacing: '0.1em', textTransform: 'uppercase' }}>o con email</span>
+                <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.07)' }} />
+              </div>
+
+              <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                <div>
+                  <label style={{ fontFamily: 'Inter, sans-serif', fontSize: '10px', letterSpacing: '0.15em', textTransform: 'uppercase', color: '#6b6560', display: 'block', marginBottom: '8px' }}>
+                    Correo electrónico
+                  </label>
+                  <input
+                    className="input-field"
+                    type="email"
+                    placeholder="tu@email.com"
+                    value={email}
+                    onChange={e => { setEmail(e.target.value); setError('') }}
+                    style={{ width: '100%' }}
+                  />
+                </div>
+
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                    <label style={{ fontFamily: 'Inter, sans-serif', fontSize: '10px', letterSpacing: '0.15em', textTransform: 'uppercase', color: '#6b6560' }}>
+                      Contraseña
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => { setForgotMode(true); setForgotEmail(email) }}
+                      style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: 'Inter, sans-serif', fontSize: '10px', color: '#3d3a35', padding: 0, transition: 'color 0.2s', letterSpacing: '0.05em' }}
+                      onMouseEnter={e => (e.currentTarget.style.color = '#c9a227')}
+                      onMouseLeave={e => (e.currentTarget.style.color = '#3d3a35')}
+                    >
+                      ¿Olvidaste la tuya?
+                    </button>
+                  </div>
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      className="input-field"
+                      type={showPass ? 'text' : 'password'}
+                      placeholder="••••••••"
+                      value={password}
+                      onChange={e => { setPassword(e.target.value); setError('') }}
+                      style={{ width: '100%', paddingRight: '48px' }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPass(!showPass)}
+                      style={{ position: 'absolute', right: '0', top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', color: '#6b6560', cursor: 'pointer', fontFamily: 'Inter, sans-serif', fontSize: '10px', letterSpacing: '0.08em', padding: '0 4px', transition: 'color 0.2s' }}
+                      onMouseEnter={e => (e.currentTarget.style.color = '#e8e3d9')}
+                      onMouseLeave={e => (e.currentTarget.style.color = '#6b6560')}
+                    >
+                      {showPass ? 'OCULTAR' : 'VER'}
+                    </button>
+                  </div>
+                </div>
+
+                {error && (
+                  <div style={{ background: 'rgba(192,57,43,0.08)', border: '1px solid rgba(192,57,43,0.2)', padding: '10px 14px', fontFamily: 'Inter, sans-serif', fontSize: '12px', color: '#c0392b' }}>
+                    {error}
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  className="btn-primary"
+                  disabled={loading}
+                  style={{ width: '100%', justifyContent: 'center', marginTop: '4px' }}
+                >
+                  {loading ? (
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
+                      <span style={{ width: '12px', height: '12px', border: '1px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.8s linear infinite' }} />
+                      Ingresando...
+                    </span>
+                  ) : 'Ingresar'}
+                </button>
+              </form>
+
+              <div style={{ marginTop: '28px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '12px', color: '#6b6560' }}>
+                  ¿No tienes cuenta?{' '}
+                  <Link to="/signup" style={{ color: '#c9a227', textDecoration: 'none' }}>Registrarse</Link>
+                </p>
+                <Link to="/" style={{ fontFamily: 'Inter, sans-serif', fontSize: '11px', color: '#3d3a35', textDecoration: 'none', letterSpacing: '0.05em', transition: 'color 0.2s' }}
+                  onMouseEnter={e => (e.currentTarget.style.color = '#6b6560')}
+                  onMouseLeave={e => (e.currentTarget.style.color = '#3d3a35')}>
+                  ← Volver
+                </Link>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>
