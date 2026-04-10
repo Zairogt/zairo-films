@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import type { FormEvent } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
 import GoogleButton from '../components/GoogleButton'
@@ -12,6 +12,7 @@ export default function Login() {
   const { login, loginWithGoogle, resetPasswordForEmail, user } = useAuth()
   const { showToast } = useToast()
   const navigate = useNavigate()
+  const location = useLocation()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPass, setShowPass] = useState(false)
@@ -24,6 +25,13 @@ export default function Login() {
   const [forgotLoading, setForgotLoading] = useState(false)
   const [forgotSent, setForgotSent] = useState(false)
   const [forgotError, setForgotError] = useState('')
+
+  // Mensaje de error si se llegó desde un link de reset expirado/inválido
+  useEffect(() => {
+    const params = new URLSearchParams(location.search)
+    const resetError = params.get('reset_error')
+    if (resetError) setError(resetError)
+  }, [location.search])
 
   // Redirigir si ya hay sesión activa (ej: después de OAuth de Google)
   useEffect(() => { if (user) navigate('/catalogo') }, [user, navigate])

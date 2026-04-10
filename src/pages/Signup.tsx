@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import type { FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
@@ -9,7 +9,7 @@ import { MOVIES } from '../data/movies'
 const BG_MOVIE = MOVIES[1] // Aquí Me Quedo
 
 export default function Signup() {
-  const { signup, loginWithGoogle } = useAuth()
+  const { signup, loginWithGoogle, user } = useAuth()
   const { showToast } = useToast()
   const navigate = useNavigate()
   const [name, setName] = useState('')
@@ -18,6 +18,8 @@ export default function Signup() {
   const [showPass, setShowPass] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [emailSent, setEmailSent] = useState(false)
+  const [sentTo, setSentTo] = useState('')
 
   const passwordStrength = password.length === 0 ? 0 : password.length < 6 ? 1 : password.length < 10 ? 2 : 3
 
@@ -27,24 +29,107 @@ export default function Signup() {
     if (password.length < 6) { setError('La contraseña debe tener al menos 6 caracteres.'); return }
     setLoading(true); setError('')
     try {
-      await signup(email, password, name)
-      showToast(`Cuenta creada. ¡Bienvenido, ${name.split(' ')[0]}!`)
-      navigate('/catalogo')
+      const result = await signup(email, password, name)
+      if (result.needsConfirmation) {
+        setSentTo(email)
+        setEmailSent(true)
+      } else {
+        showToast(`Cuenta creada. ¡Bienvenido, ${name.split(' ')[0]}!`)
+        navigate('/catalogo')
+      }
     } catch {
-      setError('Error al crear cuenta.')
+      setError('Error al crear cuenta. Verifica que el correo no esté registrado.')
     } finally {
       setLoading(false)
     }
   }
 
-  const handleGoogle = useCallback((profile: { email: string; name: string; picture: string; sub: string }) => {
-    loginWithGoogle(profile)
-    showToast(`Bienvenido, ${profile.name.split(' ')[0]}`)
-    navigate('/catalogo')
-  }, [loginWithGoogle, showToast, navigate])
+  // Redirigir si ya hay sesión (ej: OAuth de Google)
+  useEffect(() => { if (user) navigate('/catalogo') }, [user, navigate])
 
   const strengthColors = ['transparent', '#c0392b', '#c9a227', '#4caf50']
   const strengthLabels = ['', 'Débil', 'Media', 'Fuerte']
+
+  if (emailSent) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#080808', padding: '24px' }}>
+        <div style={{ maxWidth: '460px', width: '100%', textAlign: 'center' }}>
+
+          {/* Icono sobre */}
+          <div style={{
+            width: '72px', height: '72px', margin: '0 auto 32px',
+            border: '1px solid rgba(201,162,39,0.3)',
+            borderRadius: '50%',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#c9a227" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="2" y="4" width="20" height="16" rx="2"/>
+              <path d="m2 7 8.5 6a2 2 0 0 0 3 0L22 7"/>
+            </svg>
+          </div>
+
+          <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '10px', fontWeight: 500, letterSpacing: '0.25em', textTransform: 'uppercase', color: '#c9a227' }}>
+            Último paso
+          </span>
+
+          <h1 style={{ fontFamily: 'Cormorant Garamond, serif', fontSize: 'clamp(28px, 4vw, 40px)', fontWeight: 300, color: '#e8e3d9', marginTop: '12px', marginBottom: '16px', lineHeight: 1.1 }}>
+            Confirma tu correo
+          </h1>
+
+          <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '13px', fontWeight: 300, color: '#6b6560', lineHeight: 1.8, marginBottom: '8px' }}>
+            Enviamos un enlace de confirmación a:
+          </p>
+          <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '14px', color: '#e8e3d9', marginBottom: '32px', letterSpacing: '0.02em' }}>
+            {sentTo}
+          </p>
+
+          {/* Aviso de spam */}
+          <div style={{
+            background: 'rgba(201,162,39,0.05)',
+            border: '1px solid rgba(201,162,39,0.15)',
+            padding: '16px 20px',
+            marginBottom: '32px',
+            textAlign: 'left',
+          }}>
+            <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#c9a227" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: '1px' }}>
+                <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/>
+                <path d="M12 9v4"/><path d="M12 17h.01"/>
+              </svg>
+              <div>
+                <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '12px', color: '#c9a227', fontWeight: 500, marginBottom: '4px', letterSpacing: '0.05em' }}>
+                  ¿No ves el correo?
+                </p>
+                <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '12px', color: '#6b6560', lineHeight: 1.7 }}>
+                  Revisa tu carpeta de <strong style={{ color: '#8a7a5a' }}>Spam</strong> o <strong style={{ color: '#8a7a5a' }}>Correo no deseado</strong>. A veces los filtros bloquean correos de nuevos servicios. El enlace expira en 24 horas.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <button className="btn-primary" style={{ width: '100%', justifyContent: 'center' }} onClick={() => navigate('/login')}>
+              Ya confirmé — Ingresar
+            </button>
+            <button
+              style={{ background: 'transparent', border: 'none', fontFamily: 'Inter, sans-serif', fontSize: '12px', color: '#3d3a35', cursor: 'pointer', letterSpacing: '0.05em', transition: 'color 0.2s' }}
+              onMouseEnter={e => (e.currentTarget.style.color = '#6b6560')}
+              onMouseLeave={e => (e.currentTarget.style.color = '#3d3a35')}
+              onClick={() => { setEmailSent(false); setEmail(''); setPassword(''); setName('') }}
+            >
+              Usar otro correo
+            </button>
+          </div>
+
+          <div style={{ marginTop: '40px' }}>
+            <Link to="/" style={{ fontFamily: 'Inter, sans-serif', fontSize: '11px', color: '#3d3a35', textDecoration: 'none', letterSpacing: '0.05em' }}>
+              ← Volver al inicio
+            </Link>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex' }}>
@@ -144,7 +229,7 @@ export default function Signup() {
           </p>
 
           {/* Google */}
-          <GoogleButton onSuccess={handleGoogle} label="Registrarse con Google" />
+          <GoogleButton onClick={loginWithGoogle} label="Registrarse con Google" />
 
           {/* Separador */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px', margin: '24px 0' }}>

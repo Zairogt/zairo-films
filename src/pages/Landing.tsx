@@ -1,10 +1,43 @@
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { MOVIES, FEATURED_MOVIE } from '../data/movies'
+import { supabase } from '../lib/supabase'
+import { useAuth } from '../context/AuthContext'
+import { FEATURED_MOVIE } from '../data/movies'
 import MovieCard from '../components/MovieCard'
 import Footer from '../components/layout/Footer'
+import type { Movie } from '../data/movies'
 
 export default function Landing() {
   const navigate = useNavigate()
+  const { user } = useAuth()
+  const [movies, setMovies] = useState<Movie[]>([])
+  const [featuredMovie, setFeaturedMovie] = useState<Movie>(FEATURED_MOVIE)
+
+  // Detecta si el usuario llegó desde un redirect de OAuth (hay ?code= en la URL)
+  // supabase-js borra ese parámetro después de canjearlo, por eso usamos ref
+  const wasOAuthRedirect = useRef(
+    new URLSearchParams(window.location.search).has('code')
+  )
+
+  useEffect(() => {
+    if (user && wasOAuthRedirect.current) {
+      navigate('/catalogo', { replace: true })
+    }
+  }, [user, navigate])
+
+  useEffect(() => {
+    supabase
+      .from('movies')
+      .select('*')
+      .order('sort_order')
+      .then(({ data }) => {
+        if (data && data.length > 0) {
+          setMovies(data as Movie[])
+          const feat = data.find(m => m.featured) ?? data[0]
+          setFeaturedMovie(feat as Movie)
+        }
+      })
+  }, [])
 
   return (
     <div style={{ minHeight: '100vh' }}>
@@ -19,7 +52,7 @@ export default function Landing() {
       }}>
         {/* Backdrop: poster blurred */}
         <img
-          src={FEATURED_MOVIE.poster_url}
+          src={featuredMovie.poster_url}
           alt=""
           style={{
             position: 'absolute', inset: 0,
@@ -56,7 +89,7 @@ export default function Landing() {
             letterSpacing: '0.25em', textTransform: 'uppercase',
             color: '#c9a227', marginBottom: '16px',
           }}>
-            Película destacada · {FEATURED_MOVIE.genre} · {FEATURED_MOVIE.year}
+            Película destacada · {featuredMovie.genre} · {featuredMovie.year}
           </div>
 
           <h1 className="anim anim-d1" style={{
@@ -68,7 +101,7 @@ export default function Landing() {
             marginBottom: '20px',
             letterSpacing: '-0.01em',
           }}>
-            {FEATURED_MOVIE.title}
+            {featuredMovie.title}
           </h1>
 
           <div className="anim anim-d2" style={{
@@ -82,7 +115,7 @@ export default function Landing() {
             color: 'rgba(232,227,217,0.6)',
             marginBottom: '14px', lineHeight: 1.6,
           }}>
-            "{FEATURED_MOVIE.tagline}"
+            "{featuredMovie.tagline}"
           </p>
 
           <p className="anim anim-d3" style={{
@@ -93,11 +126,11 @@ export default function Landing() {
             lineHeight: 1.8, marginBottom: '32px',
             maxWidth: '460px',
           }}>
-            {FEATURED_MOVIE.sinopsis}
+            {featuredMovie.sinopsis}
           </p>
 
           <div className="anim anim-d4" style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-            <button className="btn-primary" onClick={() => navigate(`/pelicula/${FEATURED_MOVIE.id}`)}>
+            <button className="btn-primary" onClick={() => navigate(`/pelicula/${featuredMovie.id}`)}>
               Ver ahora
             </button>
             <button className="btn-outline" onClick={() => navigate('/catalogo')}>
@@ -163,7 +196,7 @@ export default function Landing() {
         </div>
 
         <div className="catalog-grid">
-          {MOVIES.map((movie, i) => (
+          {movies.map((movie, i) => (
             <MovieCard key={movie.id} movie={movie} index={i} />
           ))}
         </div>
