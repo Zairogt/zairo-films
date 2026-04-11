@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
 import TrailerModal from '../components/TrailerModal'
 import Footer from '../components/layout/Footer'
+import AdUnit from '../components/AdUnit'
 import type { Movie } from '../data/movies'
 
 function toEmbedUrl(url: string): string {
@@ -216,52 +217,10 @@ export default function MovieDetail() {
               {movie.sinopsis}
             </p>
 
-            {/* Ad bay — solo usuarios sin compra */}
+            {/* Ad — entre sinopsis y player, solo usuarios sin compra */}
             {(access === 'anon' || access === 'free') && (
-              <div style={{
-                marginBottom: '16px',
-                border: '1px solid rgba(255,255,255,0.04)',
-                background: '#0a0a0a',
-                position: 'relative',
-                overflow: 'hidden',
-              }}>
-                <div style={{
-                  height: '1px',
-                  background: 'linear-gradient(to right, transparent, rgba(201,162,39,0.2), transparent)',
-                }} />
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: '8px 14px 6px',
-                }}>
-                  <span style={{
-                    fontFamily: 'Inter, sans-serif', fontSize: '8px',
-                    fontWeight: 500, letterSpacing: '0.2em',
-                    textTransform: 'uppercase', color: '#2e2b26',
-                  }}>Publicidad</span>
-                  <span style={{
-                    fontFamily: 'Inter, sans-serif', fontSize: '8px',
-                    color: '#2e2b26', letterSpacing: '0.08em',
-                  }}>Google AdSense</span>
-                </div>
-                <div style={{
-                  height: '90px',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  background: 'repeating-linear-gradient(90deg, transparent, transparent 80px, rgba(255,255,255,0.008) 80px, rgba(255,255,255,0.008) 81px)',
-                }}>
-                  {/* PRODUCCIÓN: insertar unidad de AdSense aquí */}
-                  <span style={{
-                    fontFamily: 'Cormorant Garamond, serif', fontSize: '13px',
-                    fontStyle: 'italic', color: '#1e1c18',
-                  }}>
-                    728 × 90 — Leaderboard
-                  </span>
-                </div>
-                <div style={{
-                  height: '1px',
-                  background: 'linear-gradient(to right, transparent, rgba(255,255,255,0.03), transparent)',
-                }} />
+              <div style={{ marginBottom: '16px' }}>
+                <AdUnit slot="6818281717" format="horizontal" />
               </div>
             )}
 
@@ -459,6 +418,13 @@ export default function MovieDetail() {
                 </div>
               )}
             </div>
+
+            {/* Ad — debajo del player, solo usuarios sin compra */}
+            {(access === 'anon' || access === 'free') && (
+              <div style={{ marginTop: '16px' }}>
+                <AdUnit slot="8492111026" format="auto" />
+              </div>
+            )}
           </div>
 
           {/* Right sidebar */}
