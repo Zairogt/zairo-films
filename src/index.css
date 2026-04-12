@@ -235,6 +235,29 @@ body::after {
 .nav-links { display: flex; align-items: center; gap: 32px; }
 .nav-hamburger { display: none; }
 
+/* Stats grid de 3 columnas (Mi Cuenta, etc.) */
+.stats-3col {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.04);
+  margin-bottom: 56px;
+}
+
+/* Fila de compra en Mi Cuenta */
+.purchase-row {
+  background: #0e0e0e;
+  padding: 20px 24px;
+  display: grid;
+  grid-template-columns: 56px 1fr auto auto;
+  gap: 16px;
+  align-items: center;
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+}
+.purchase-row-amount { /* visible en desktop */ }
+.purchase-row-actions { display: flex; gap: 8px; }
+
 @media (max-width: 900px) {
   .two-col-grid,
   .checkout-grid {
@@ -248,37 +271,88 @@ body::after {
 }
 
 @media (max-width: 768px) {
+  /* iOS: evita zoom automático en inputs */
+  .input-field { font-size: 16px !important; }
+  input, select, textarea { font-size: 16px !important; }
+
+  /* Catálogo: 1 columna en móvil — posters grandes */
   .catalog-grid {
     grid-template-columns: 1fr;
-    gap: 20px;
+    gap: 16px;
   }
 
-  .page-pad { padding: 0 20px; }
-  .section-pad { padding: 48px 20px 36px; }
+  .page-pad { padding: 0 16px; }
+  .section-pad { padding: 40px 16px 32px; }
 
   .footer-grid {
     flex-direction: column;
     gap: 40px;
   }
   .footer-links {
-    gap: 40px;
+    gap: 32px;
+    flex-wrap: wrap;
   }
 
   /* Nav */
   .nav-links { display: none; }
-  .nav-links.open {
-    display: flex;
-    flex-direction: column;
-    position: fixed;
-    top: 0; left: 0; right: 0; bottom: 0;
-    background: rgba(8,8,8,0.97);
-    z-index: 200;
-    justify-content: center;
-    align-items: center;
-    gap: 32px;
-    font-size: 22px;
-  }
   .nav-hamburger { display: flex; }
+
+  /* Stats 3col → 1 col en mobile */
+  .stats-3col {
+    grid-template-columns: 1fr;
+    margin-bottom: 40px;
+  }
+
+  /* Fila de compra: rediseño mobile */
+  .purchase-row {
+    grid-template-columns: 48px 1fr;
+    grid-template-rows: auto auto;
+    gap: 8px 12px;
+    padding: 16px;
+  }
+  .purchase-row-amount { display: none; }
+  .purchase-row-actions {
+    grid-column: 2;
+    margin-top: 4px;
+  }
+
+  /* Checkout order summary: no sticky en mobile */
+  .checkout-summary-sticky { position: static !important; top: auto !important; }
+
+  /* Botones full width en mobile cuando están solos */
+  .btn-full-mobile { width: 100% !important; justify-content: center !important; }
+
+  /* Admin: tabbar scroll horizontal */
+  .admin-tabs {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .admin-tabs::-webkit-scrollbar { display: none; }
+
+  /* Admin: tablas con scroll horizontal */
+  .admin-table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+@media (max-width: 480px) {
+  /* Catálogo: 1 columna */
+  .catalog-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .two-col-grid,
+  .checkout-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* Stats 3col: horizontal compacto en landscape pequeño */
+  .stats-3col {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* Spin animation for loading spinners */
@@ -293,15 +367,4 @@ body::after {
 @media (max-width: 768px) {
   .hide-mobile { display: none !important; }
   .show-mobile { display: block !important; }
-}
-
-@media (max-width: 480px) {
-  .catalog-grid {
-    grid-template-columns: 1fr;
-    gap: 16px;
-  }
-  .two-col-grid,
-  .checkout-grid {
-    grid-template-columns: 1fr;
-  }
 }

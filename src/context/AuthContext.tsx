@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabase'
 // Cache del perfil en localStorage para restaurar la sesión instantáneamente al recargar
 const PROFILE_KEY = 'zf_profile'
 
-function readProfileCache(id: string): { name: string; isAdmin: boolean } | null {
+function readProfileCache(id: string): { name: string; isAdmin: boolean; nameUpdatedAt: string | null } | null {
   try {
     const raw = localStorage.getItem(PROFILE_KEY)
     if (!raw) return null
@@ -14,8 +14,8 @@ function readProfileCache(id: string): { name: string; isAdmin: boolean } | null
   } catch { return null }
 }
 
-function writeProfileCache(id: string, name: string, isAdmin: boolean) {
-  try { localStorage.setItem(PROFILE_KEY, JSON.stringify({ id, name, isAdmin })) } catch {}
+function writeProfileCache(id: string, name: string, isAdmin: boolean, nameUpdatedAt: string | null) {
+  try { localStorage.setItem(PROFILE_KEY, JSON.stringify({ id, name, isAdmin, nameUpdatedAt })) } catch {}
 }
 
 function clearProfileCache() {
@@ -36,6 +36,7 @@ interface AuthUser {
   email: string
   name: string
   isAdmin: boolean
+  nameUpdatedAt: string | null
 }
 
 interface AuthCtx {
@@ -50,6 +51,7 @@ interface AuthCtx {
   logout: () => Promise<void>
   resetPasswordForEmail: (email: string) => Promise<void>
   updatePassword: (password: string) => Promise<void>
+  updateName: (name: string) => Promise<void>
   buyMovie: (movieId: string, tier: 'watch' | 'download', amount: number) => Promise<void>
   getAccess: (movieId: string) => AccessTier
 }
@@ -76,7 +78,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             if (event === 'INITIAL_SESSION') {
               const cached = readProfileCache(id)
               if (cached) {
-                setUser({ id, email: email!, name: cached.name, isAdmin: cached.isAdmin })
+                setUser({ id, email: email!, name: cached.name, isAdmin: cached.isAdmin, nameUpdatedAt: cached.nameUpdatedAt })
                 setLoading(false)
                 loadUser(id, email!, user_metadata)
                 clearTimeout(timeout)
@@ -130,7 +132,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const [profileRes, purchasesRes] = await Promise.race([
         Promise.all([
-          supabase.from('profiles').select('name, is_admin').eq('id', id).maybeSingle(),
+          supabase.from('profiles').select('name, is_admin, name_updated_at').eq('id', id).maybeSingle() as any,
           supabase.from('purchases').select('movie_id, tier, amount, created_at').eq('user_id', id),
         ]),
         abort as never,
@@ -138,22 +140,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       let name = (metadata?.full_name ?? metadata?.name ?? email.split('@')[0]) as string
       let isAdmin = false
+      let nameUpdatedAt: string | null = null
 
       if (!profileRes.data) {
-        const { data: created } = await supabase
+        const res: any = await supabase
           .from('profiles')
           .upsert({ id, name, email }, { onConflict: 'id' })
-          .select('name, is_admin')
+          .select('name, is_admin, name_updated_at')
           .maybeSingle()
+        const created = res.data
         name = created?.name ?? name
         isAdmin = created?.is_admin ?? false
+        nameUpdatedAt = created?.name_updated_at ?? null
       } else {
-        name = profileRes.data.name ?? email.split('@')[0]
-        isAdmin = profileRes.data.is_admin ?? false
+        const p = profileRes.data as { name: string; is_admin: boolean; name_updated_at: string | null }
+        name = p.name ?? email.split('@')[0]
+        isAdmin = p.is_admin ?? false
+        nameUpdatedAt = p.name_updated_at ?? null
       }
 
-      setUser({ id, email, name, isAdmin })
-      writeProfileCache(id, name, isAdmin)
+      setUser({ id, email, name, isAdmin, nameUpdatedAt })
+      writeProfileCache(id, name, isAdmin, nameUpdatedAt)
       setPurchases(
         (purchasesRes.data ?? []).map(p => ({
           movieId: p.movie_id,
@@ -208,6 +215,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) throw error
   }
 
+  const updateName = async (name: string) => {
+    if (!user) throw new Error('No autenticado')
+    const now = new Date().toISOString()
+    const { error } = await (supabase
+      .from('profiles')
+      .update({ name, name_updated_at: now } as any)
+      .eq('id', user.id))
+    if (error) throw error
+    setUser(prev => prev ? { ...prev, name, nameUpdatedAt: now } : prev)
+    writeProfileCache(user.id, name, user.isAdmin, now)
+  }
+
   const logout = async () => {
     await supabase.auth.signOut()
     setUser(null)
@@ -252,7 +271,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       user, purchases, loading,
       recoveryMode, clearRecoveryMode,
       login, signup, loginWithGoogle, logout,
-      resetPasswordForEmail, updatePassword,
+      resetPasswordForEmail, updatePassword, updateName,
       buyMovie, getAccess,
     }}>
       {children}

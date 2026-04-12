@@ -12,11 +12,34 @@ import Checkout from './pages/Checkout'
 import MiCuenta from './pages/MiCuenta'
 import Admin from './pages/Admin'
 import ResetPassword from './pages/ResetPassword'
+import PagoResultado from './pages/PagoResultado'
+import Terminos from './pages/Terminos'
+import Privacidad from './pages/Privacidad'
 import NotFound from './pages/NotFound'
 
 function ScrollToTop() {
   const { pathname } = useLocation()
   useEffect(() => { window.scrollTo(0, 0) }, [pathname])
+  return null
+}
+
+// Detecta el redirect de Pagadito (?token=&ERN=) o Stripe (?stripe_session=)
+function PaymentRedirect() {
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const token = params.get('token')
+    const ern = params.get('ERN')
+    const stripeSession = params.get('stripe_session')
+
+    if (stripeSession) {
+      navigate('/pago-resultado', { replace: true, state: { provider: 'stripe', stripeSession } })
+    } else if (token && ern) {
+      navigate('/pago-resultado', { replace: true, state: { provider: 'pagadito', token, ern } })
+    }
+  }, [navigate])
+
   return null
 }
 
@@ -66,6 +89,7 @@ export default function App() {
       <ToastProvider>
         <BrowserRouter>
           <ScrollToTop />
+          <PaymentRedirect />
           <RecoveryRedirect />
           <Navbar />
           <Routes>
@@ -78,6 +102,9 @@ export default function App() {
             <Route path="/mi-cuenta" element={<MiCuenta />} />
             <Route path="/admin" element={<Admin />} />
             <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/pago-resultado" element={<PagoResultado />} />
+            <Route path="/terminos" element={<Terminos />} />
+            <Route path="/privacidad" element={<Privacidad />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

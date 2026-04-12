@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import { MOVIES } from '../data/movies'
 import MovieCard from '../components/MovieCard'
 import AdCard from '../components/AdCard'
+import AdUnit from '../components/AdUnit'
 import Footer from '../components/layout/Footer'
 import type { Movie } from '../data/movies'
 
@@ -110,6 +111,11 @@ export default function Catalogo() {
             }}>
               {filtered.length} {filtered.length === 1 ? 'película' : 'películas'}
             </p>
+
+            {/* Banner horizontal arriba del grid — slot "1234567890": crear en AdSense como "Catálogo banner" */}
+            <div style={{ marginBottom: '24px' }}>
+              <AdUnit slot="5408464292" format="horizontal" />
+            </div>
 
             <div className="catalog-grid">
               {grid.map(item =>

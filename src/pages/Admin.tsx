@@ -12,7 +12,7 @@ type OrderRow = {
   tier: 'watch' | 'download'; amount: number; date: string
 }
 type UserRow = {
-  id: string; email: string; name: string
+  id: string; fullId: string; email: string; name: string
   joined: string; orders: number; total: number
 }
 
@@ -79,6 +79,9 @@ export default function Admin() {
   const [dataLoading, setDataLoading] = useState(false)
   const [dataError, setDataError] = useState(false)
   const [retryKey, setRetryKey] = useState(0)
+  const [editingUserId, setEditingUserId] = useState<string | null>(null)
+  const [editingUserName, setEditingUserName] = useState('')
+  const [savingUserName, setSavingUserName] = useState(false)
 
   useEffect(() => {
     if (!user?.isAdmin) return
@@ -126,6 +129,7 @@ export default function Admin() {
         setDbUsers(
           (profilesData ?? []).map((u: any) => ({
             id: u.id.slice(0, 10),
+            fullId: u.id,
             email: u.email,
             name: u.name,
             joined: u.created_at.slice(0, 10),
@@ -180,6 +184,23 @@ export default function Admin() {
     )
   }
 
+  const handleSaveUserName = async (fullId: string) => {
+    const trimmed = editingUserName.trim()
+    if (!trimmed) return
+    setSavingUserName(true)
+    try {
+      const { error } = await supabase.from('profiles').update({ name: trimmed }).eq('id', fullId)
+      if (error) throw error
+      setDbUsers(prev => prev.map(u => u.fullId === fullId ? { ...u, name: trimmed } : u))
+      setEditingUserId(null)
+      showToast('Nombre actualizado')
+    } catch {
+      showToast('Error al actualizar nombre')
+    } finally {
+      setSavingUserName(false)
+    }
+  }
+
   const filteredOrders = orderFilter === 'all' ? dbOrders : dbOrders.filter(o => o.tier === orderFilter)
   const totalRevenue = dbOrders.reduce((s, o) => s + o.amount, 0)
   const featuredMovie = localMovies.find(m => m.featured)
@@ -216,18 +237,18 @@ export default function Admin() {
   return (
     <div style={{ minHeight: '100vh', paddingTop: '72px' }}>
       {/* Header */}
-      <div style={{ padding: '40px 48px 0', borderBottom: '1px solid rgba(255,255,255,0.04)', background: '#0a0a0a' }}>
+      <div style={{ padding: 'clamp(24px, 4vw, 40px) clamp(16px, 4vw, 48px) 0', borderBottom: '1px solid rgba(255,255,255,0.04)', background: '#0a0a0a' }}>
         <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '32px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px', gap: '16px', flexWrap: 'wrap' }}>
             <div>
               <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '10px', fontWeight: 500, letterSpacing: '0.25em', textTransform: 'uppercase', color: '#c9a227' }}>Panel de administración</span>
-              <h1 style={{ fontFamily: 'Cormorant Garamond, serif', fontSize: '36px', fontWeight: 300, color: '#e8e3d9', marginTop: '8px' }}>Zairo Films · Admin</h1>
+              <h1 style={{ fontFamily: 'Cormorant Garamond, serif', fontSize: 'clamp(24px, 4vw, 36px)', fontWeight: 300, color: '#e8e3d9', marginTop: '8px' }}>Zairo Films · Admin</h1>
             </div>
-            <div style={{ background: 'rgba(201,162,39,0.08)', border: '1px solid rgba(201,162,39,0.2)', padding: '12px 20px', fontFamily: 'Inter, sans-serif', fontSize: '11px', color: '#c9a227', letterSpacing: '0.08em' }}>
+            <div style={{ background: 'rgba(201,162,39,0.08)', border: '1px solid rgba(201,162,39,0.2)', padding: '10px 16px', fontFamily: 'Inter, sans-serif', fontSize: '11px', color: '#c9a227', letterSpacing: '0.08em', alignSelf: 'flex-start' }}>
               {user.email}
             </div>
           </div>
-          <div style={{ display: 'flex' }}>
+          <div className="admin-tabs" style={{ display: 'flex' }}>
             {TABS.map(([t, label]) => (
               <button key={t} onClick={() => setTab(t)} style={{
                 background: 'transparent', border: 'none',
@@ -236,14 +257,15 @@ export default function Admin() {
                 fontFamily: 'Inter, sans-serif', fontSize: '11px',
                 fontWeight: tab === t ? 500 : 400,
                 letterSpacing: '0.12em', textTransform: 'uppercase',
-                padding: '12px 24px', cursor: 'pointer', transition: 'all 0.2s',
+                padding: '12px 20px', cursor: 'pointer', transition: 'all 0.2s',
+                whiteSpace: 'nowrap', flexShrink: 0,
               }}>{label}</button>
             ))}
           </div>
         </div>
       </div>
 
-      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '40px 48px' }}>
+      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: 'clamp(24px, 4vw, 40px) clamp(16px, 4vw, 48px)' }}>
 
         {dataLoading && (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '80px 0' }}>
@@ -587,7 +609,8 @@ export default function Admin() {
               </button>
             </div>
             <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '11px', color: '#6b6560', marginBottom: '16px' }}>{filteredOrders.length} órdenes</p>
-            <div style={{ background: '#0e0e0e', border: '1px solid rgba(255,255,255,0.06)' }}>
+            <div className="admin-table-wrap">
+            <div style={{ background: '#0e0e0e', border: '1px solid rgba(255,255,255,0.06)', minWidth: '640px' }}>
               <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr 1fr 80px 80px 100px', gap: '16px', padding: '12px 20px', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
                 {['ID', 'Usuario', 'Película', 'Tipo', 'Monto', 'Fecha'].map(h => <span key={h} style={cell}>{h}</span>)}
               </div>
@@ -606,6 +629,7 @@ export default function Admin() {
                 </div>
               ))}
             </div>
+            </div>{/* /admin-table-wrap orders */}
           </div>
         )}
 
@@ -613,7 +637,8 @@ export default function Admin() {
         {tab === 'users' && (
           <div>
             <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '11px', color: '#6b6560', marginBottom: '24px' }}>{dbUsers.length} usuarios registrados</p>
-            <div style={{ background: '#0e0e0e', border: '1px solid rgba(255,255,255,0.06)' }}>
+            <div className="admin-table-wrap">
+            <div style={{ background: '#0e0e0e', border: '1px solid rgba(255,255,255,0.06)', minWidth: '640px' }}>
               <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr 1fr 80px 80px 100px', gap: '16px', padding: '12px 20px', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
                 {['ID', 'Nombre', 'Email', 'Compras', 'Total', 'Desde'].map(h => <span key={h} style={cell}>{h}</span>)}
               </div>
@@ -622,7 +647,46 @@ export default function Admin() {
               ) : dbUsers.map(u => (
                 <div key={u.id} style={{ display: 'grid', gridTemplateColumns: '120px 1fr 1fr 80px 80px 100px', gap: '16px', padding: '16px 20px', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
                   <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '10px', color: '#6b6560', letterSpacing: '0.05em' }}>{u.id}</span>
-                  <span style={{ fontFamily: 'Cormorant Garamond, serif', fontSize: '15px', color: '#e8e3d9' }}>{u.name}</span>
+
+                  {/* Nombre editable por admin */}
+                  {editingUserId === u.fullId ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <input
+                        autoFocus
+                        value={editingUserName}
+                        onChange={e => setEditingUserName(e.target.value)}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') handleSaveUserName(u.fullId)
+                          if (e.key === 'Escape') setEditingUserId(null)
+                        }}
+                        style={{
+                          fontFamily: 'Cormorant Garamond, serif', fontSize: '15px',
+                          color: '#e8e3d9', background: 'transparent',
+                          border: 'none', borderBottom: '1px solid rgba(201,162,39,0.4)',
+                          outline: 'none', padding: '0 2px 2px', width: '120px',
+                        }}
+                      />
+                      <button
+                        onClick={() => handleSaveUserName(u.fullId)}
+                        disabled={savingUserName}
+                        style={{ fontFamily: 'Inter, sans-serif', fontSize: '8px', letterSpacing: '0.1em', textTransform: 'uppercase', color: '#c9a227', background: 'transparent', border: '1px solid rgba(201,162,39,0.3)', padding: '3px 8px', cursor: 'pointer', opacity: savingUserName ? 0.4 : 1 }}
+                      >
+                        {savingUserName ? '…' : 'OK'}
+                      </button>
+                      <button
+                        onClick={() => setEditingUserId(null)}
+                        style={{ fontFamily: 'Inter, sans-serif', fontSize: '8px', letterSpacing: '0.1em', textTransform: 'uppercase', color: '#6b6560', background: 'transparent', border: '1px solid rgba(255,255,255,0.06)', padding: '3px 8px', cursor: 'pointer' }}
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }} onClick={() => { setEditingUserId(u.fullId); setEditingUserName(u.name) }}>
+                      <span style={{ fontFamily: 'Cormorant Garamond, serif', fontSize: '15px', color: '#e8e3d9' }}>{u.name}</span>
+                      <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '8px', color: '#3d3a35', letterSpacing: '0.1em', textTransform: 'uppercase' }}>editar</span>
+                    </div>
+                  )}
+
                   <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '11px', color: '#9e9890' }}>{u.email}</span>
                   <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '12px', color: '#9e9890', textAlign: 'center' }}>{u.orders}</span>
                   <span style={{ fontFamily: 'Cormorant Garamond, serif', fontSize: '18px', color: '#c9a227' }}>${u.total}</span>
@@ -630,6 +694,7 @@ export default function Admin() {
                 </div>
               ))}
             </div>
+            </div>{/* /admin-table-wrap users */}
           </div>
         )}
 

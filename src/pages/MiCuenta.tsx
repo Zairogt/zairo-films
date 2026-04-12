@@ -2,15 +2,34 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
+import { useToast } from '../context/ToastContext'
 import Footer from '../components/layout/Footer'
 import type { Movie } from '../data/movies'
 
+const COOLDOWN_DAYS = 7 * 30 // 7 meses ≈ 210 días
+
+function canChangeName(nameUpdatedAt: string | null): boolean {
+  if (!nameUpdatedAt) return true
+  const diff = Date.now() - new Date(nameUpdatedAt).getTime()
+  return diff >= COOLDOWN_DAYS * 24 * 60 * 60 * 1000
+}
+
+function nextChangeDate(nameUpdatedAt: string | null): string {
+  if (!nameUpdatedAt) return ''
+  const next = new Date(new Date(nameUpdatedAt).getTime() + COOLDOWN_DAYS * 24 * 60 * 60 * 1000)
+  return next.toLocaleDateString('es-GT', { day: '2-digit', month: 'long', year: 'numeric' })
+}
+
 export default function MiCuenta() {
-  const { user, purchases, logout } = useAuth()
+  const { user, purchases, logout, updateName } = useAuth()
+  const { showToast } = useToast()
   const navigate = useNavigate()
   const [movieMap, setMovieMap] = useState<Record<string, Movie>>({})
   const [secureMap, setSecureMap] = useState<Record<string, string>>({})
   const [loadingMovies, setLoadingMovies] = useState(false)
+  const [editingName, setEditingName] = useState(false)
+  const [nameInput, setNameInput] = useState('')
+  const [savingName, setSavingName] = useState(false)
 
   useEffect(() => {
     if (purchases.length === 0) return
@@ -50,6 +69,21 @@ export default function MiCuenta() {
 
   const handleLogout = () => { logout(); navigate('/') }
 
+  const handleSaveName = async () => {
+    const trimmed = nameInput.trim()
+    if (!trimmed || trimmed === user.name) { setEditingName(false); return }
+    setSavingName(true)
+    try {
+      await updateName(trimmed)
+      setEditingName(false)
+      showToast('Nombre actualizado')
+    } catch {
+      showToast('Error al guardar el nombre')
+    } finally {
+      setSavingName(false)
+    }
+  }
+
   return (
     <div style={{ minHeight: '100vh', paddingTop: '72px' }}>
       {/* Header */}
@@ -64,13 +98,92 @@ export default function MiCuenta() {
             fontWeight: 500, letterSpacing: '0.25em',
             textTransform: 'uppercase', color: '#c9a227',
           }}>Cuenta</span>
-          <h1 className="anim anim-d1" style={{
-            fontFamily: 'Cormorant Garamond, serif',
-            fontSize: 'clamp(32px, 4vw, 52px)',
-            fontWeight: 300, color: '#e8e3d9', marginTop: '12px',
-          }}>
-            {user.name}
-          </h1>
+
+          {editingName ? (
+            <div className="anim anim-d1" style={{ marginTop: '12px', display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+              <input
+                autoFocus
+                value={nameInput}
+                onChange={e => setNameInput(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') handleSaveName()
+                  if (e.key === 'Escape') setEditingName(false)
+                }}
+                style={{
+                  fontFamily: 'Cormorant Garamond, serif',
+                  fontSize: 'clamp(24px, 3vw, 40px)', fontWeight: 300,
+                  color: '#e8e3d9', background: 'transparent',
+                  border: 'none', borderBottom: '1px solid rgba(201,162,39,0.5)',
+                  outline: 'none', padding: '0 4px 4px',
+                  minWidth: '200px', maxWidth: '400px',
+                }}
+              />
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button
+                  onClick={handleSaveName}
+                  disabled={savingName || !nameInput.trim()}
+                  style={{
+                    fontFamily: 'Inter, sans-serif', fontSize: '9px',
+                    letterSpacing: '0.15em', textTransform: 'uppercase',
+                    color: '#c9a227', background: 'rgba(201,162,39,0.08)',
+                    border: '1px solid rgba(201,162,39,0.3)',
+                    padding: '6px 14px', cursor: 'pointer',
+                    opacity: savingName || !nameInput.trim() ? 0.4 : 1,
+                  }}
+                >
+                  {savingName ? 'Guardando…' : 'Guardar'}
+                </button>
+                <button
+                  onClick={() => setEditingName(false)}
+                  style={{
+                    fontFamily: 'Inter, sans-serif', fontSize: '9px',
+                    letterSpacing: '0.15em', textTransform: 'uppercase',
+                    color: '#6b6560', background: 'transparent',
+                    border: '1px solid rgba(255,255,255,0.08)',
+                    padding: '6px 14px', cursor: 'pointer',
+                  }}
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="anim anim-d1" style={{ marginTop: '12px', display: 'flex', alignItems: 'center', gap: '16px' }}>
+              <h1 style={{
+                fontFamily: 'Cormorant Garamond, serif',
+                fontSize: 'clamp(32px, 4vw, 52px)',
+                fontWeight: 300, color: '#e8e3d9', margin: 0,
+              }}>
+                {user.name}
+              </h1>
+              {canChangeName(user.nameUpdatedAt) ? (
+                <button
+                  onClick={() => { setNameInput(user.name); setEditingName(true) }}
+                  style={{
+                    fontFamily: 'Inter, sans-serif', fontSize: '9px',
+                    letterSpacing: '0.15em', textTransform: 'uppercase',
+                    color: '#6b6560', background: 'transparent',
+                    border: '1px solid rgba(255,255,255,0.08)',
+                    padding: '5px 12px', cursor: 'pointer',
+                    transition: 'color 0.2s, border-color 0.2s',
+                    marginTop: '6px',
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.color = '#c9a227'; e.currentTarget.style.borderColor = 'rgba(201,162,39,0.3)' }}
+                  onMouseLeave={e => { e.currentTarget.style.color = '#6b6560'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)' }}
+                >
+                  Editar nombre
+                </button>
+              ) : (
+                <span style={{
+                  fontFamily: 'Inter, sans-serif', fontSize: '10px',
+                  color: '#3d3a35', marginTop: '6px',
+                }}>
+                  Puedes cambiarlo el {nextChangeDate(user.nameUpdatedAt)}
+                </span>
+              )}
+            </div>
+          )}
+
           <p className="anim anim-d2" style={{
             fontFamily: 'Inter, sans-serif', fontSize: '13px',
             color: '#6b6560', marginTop: '8px',
@@ -80,12 +193,7 @@ export default function MiCuenta() {
 
       <div style={{ maxWidth: '900px', margin: '0 auto', padding: '48px' }}>
         {/* Stats */}
-        <div className="anim" style={{
-          display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)',
-          gap: '1px', background: 'rgba(255,255,255,0.04)',
-          border: '1px solid rgba(255,255,255,0.04)',
-          marginBottom: '56px',
-        }}>
+        <div className="anim stats-3col">
           {[
             ['Películas compradas', purchases.length],
             ['Descargas disponibles', purchases.filter(p => p.tier === 'download').length],
@@ -146,17 +254,10 @@ export default function MiCuenta() {
                 const movie = movieMap[p.movieId]
                 const downloadUrl = secureMap[p.movieId]
                 return (
-                  <div key={p.movieId} style={{
-                    background: '#0e0e0e',
-                    padding: '20px 24px',
-                    display: 'grid',
-                    gridTemplateColumns: '56px 1fr auto auto',
-                    gap: '16px',
-                    alignItems: 'center',
-                  }}>
+                  <div key={p.movieId} className="purchase-row">
                     {/* Mini poster */}
                     <div style={{
-                      width: '56px', height: '72px', flexShrink: 0,
+                      width: '100%', height: '72px', flexShrink: 0,
                       background: movie?.backdrop ?? '#111',
                       overflow: 'hidden', borderRadius: '1px',
                     }}>
@@ -180,15 +281,16 @@ export default function MiCuenta() {
                       }}>
                         {p.tier === 'download' ? 'Ver + Descargar' : 'Ver sin anuncios'} ·{' '}
                         {new Date(p.date).toLocaleDateString('es-GT', { day: '2-digit', month: 'short', year: 'numeric' })}
+                        {' '}· <span style={{ color: '#c9a227' }}>${p.amount}</span>
                       </p>
                     </div>
 
-                    <span style={{
+                    <span className="purchase-row-amount" style={{
                       fontFamily: 'Cormorant Garamond, serif',
                       fontSize: '20px', color: '#c9a227',
                     }}>${p.amount}</span>
 
-                    <div style={{ display: 'flex', gap: '8px' }}>
+                    <div className="purchase-row-actions">
                       <button
                         className="btn-ghost"
                         style={{ padding: '8px 16px', fontSize: '10px' }}

@@ -19,7 +19,7 @@ export default function Footer() {
             fontFamily: 'Inter, sans-serif', fontSize: '12px',
             fontWeight: 300, color: '#6b6560', lineHeight: 1.7,
           }}>
-            Cine independiente centroamericano.<br />
+            Cine guatemalteco.<br />
             Por Rodolfo Espinosa Orantes.
           </p>
         </div>
@@ -54,7 +54,7 @@ export default function Footer() {
               fontFamily: 'Inter, sans-serif', fontSize: '12px',
               fontWeight: 300, color: '#6b6560', lineHeight: 1.8,
             }}>
-              rodolfo@zairofilms.com<br />
+              Zairofilms@proton.me<br />
               Guatemala, C.A.
             </p>
           </div>
@@ -69,8 +69,23 @@ export default function Footer() {
         alignItems: 'center', flexWrap: 'wrap', gap: '8px',
       }}>
         <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '11px', color: '#3d3a35' }}>
-          © {new Date().getFullYear()} Rodolfo Espinosa Orantes · Zairo Films
+          © {new Date().getFullYear()} ZairoSoftware · Zairo Films
         </p>
+        <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '11px', color: '#2e2b26' }}>
+          Hecho por ZairoSoftware
+        </p>
+        <div style={{ display: 'flex', gap: '24px' }}>
+          {([[ '/terminos', 'Términos' ], ['/privacidad', 'Privacidad']] as [string, string][]).map(([to, label]) => (
+            <Link key={to} to={to} style={{
+              fontFamily: 'Inter, sans-serif', fontSize: '11px',
+              color: '#3d3a35', textDecoration: 'none',
+              transition: 'color 0.2s',
+            }}
+              onMouseEnter={e => (e.currentTarget.style.color = '#6b6560')}
+              onMouseLeave={e => (e.currentTarget.style.color = '#3d3a35')}
+            >{label}</Link>
+          ))}
+        </div>
       </div>
     </footer>
   )

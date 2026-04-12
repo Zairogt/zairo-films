@@ -9,16 +9,14 @@ export default function Checkout() {
   const { id } = useParams()
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
-  const { user, buyMovie } = useAuth()
+  const { user, getAccess } = useAuth()
   const { showToast } = useToast()
 
   const [movie, setMovie] = useState<Movie | null>(null)
   const [movieLoading, setMovieLoading] = useState(true)
   const defaultTier = searchParams.get('tier') === 'download' ? 'download' : 'watch'
   const [tier, setTier] = useState<'watch' | 'download'>(defaultTier)
-  const [card, setCard] = useState({ number: '', expiry: '', cvc: '', name: '' })
-  const [loading, setLoading] = useState(false)
-  const [done, setDone] = useState(false)
+  const [loading, setLoading] = useState<'pagadito' | 'stripe' | null>(null)
 
   useEffect(() => {
     if (!id) return
@@ -48,48 +46,37 @@ export default function Checkout() {
     </div>
   )
 
-  const price = tier === 'watch' ? movie.precio_ver : movie.precio_descargar
-
-  const handlePay = async () => {
-    if (!card.number || !card.expiry || !card.cvc || !card.name) return
-    setLoading(true)
-    await new Promise(r => setTimeout(r, 1800))
-    buyMovie(movie.id, tier, price)
-    showToast('¡Compra exitosa! Ya puedes ver sin anuncios.')
-    setLoading(false)
-    setDone(true)
-  }
-
-  if (done) return (
+  const currentAccess = getAccess(movie.id)
+  if (currentAccess === 'download' || (currentAccess === 'watch' && defaultTier === 'watch')) return (
     <div style={{
       minHeight: '100vh', display: 'flex',
       alignItems: 'center', justifyContent: 'center',
       background: 'radial-gradient(ellipse at 50% 30%, #0d1a0d 0%, #080808 60%)',
+      padding: '24px',
     }}>
-      <div className="anim" style={{ textAlign: 'center', maxWidth: '440px', padding: '0 24px' }}>
+      <div className="anim" style={{ textAlign: 'center', maxWidth: '440px' }}>
         <div style={{
           width: '72px', height: '72px', borderRadius: '50%',
           border: '1px solid rgba(201,162,39,0.4)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          margin: '0 auto 32px',
-          background: 'rgba(201,162,39,0.06)',
+          margin: '0 auto 32px', background: 'rgba(201,162,39,0.06)',
         }}>
           <span style={{ fontSize: '28px', color: '#c9a227' }}>✓</span>
         </div>
         <h1 style={{
           fontFamily: 'Cormorant Garamond, serif',
-          fontSize: '40px', fontWeight: 300, color: '#e8e3d9',
-          marginBottom: '12px',
-        }}>Compra exitosa</h1>
+          fontSize: '36px', fontWeight: 300, color: '#e8e3d9', marginBottom: '12px',
+        }}>Ya tienes esta película</h1>
         <div style={{ width: '36px', height: '1px', background: '#c9a227', margin: '0 auto 20px' }} />
         <p style={{
           fontFamily: 'Inter, sans-serif', fontSize: '13px',
           color: '#6b6560', lineHeight: 1.8, marginBottom: '40px',
         }}>
-          Ahora tienes acceso {tier === 'download' ? 'completo con descarga' : 'sin anuncios'} a<br />
-          <em style={{ color: '#e8e3d9', fontStyle: 'italic' }}>{movie.title}</em>
+          <em style={{ fontFamily: 'Cormorant Garamond, serif', fontSize: '17px', color: '#e8e3d9', fontStyle: 'italic' }}>{movie.title}</em>
+          <br />ya está en tu biblioteca con acceso{' '}
+          {currentAccess === 'download' ? 'de descarga' : 'sin anuncios'}.
         </p>
-        <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+        <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
           <button className="btn-primary" onClick={() => navigate(`/pelicula/${movie.id}`)}>
             Ver ahora
           </button>
@@ -97,9 +84,62 @@ export default function Checkout() {
             Mi cuenta
           </button>
         </div>
+        {currentAccess === 'watch' && defaultTier === 'download' && (
+          <p style={{
+            fontFamily: 'Inter, sans-serif', fontSize: '11px',
+            color: '#3d3a35', marginTop: '24px', lineHeight: 1.7,
+          }}>
+            Tienes acceso de visualización. Para agregar la descarga,<br />
+            <button
+              onClick={() => { /* permitir upgrade */ }}
+              style={{ background: 'transparent', border: 'none', color: '#c9a227', cursor: 'pointer', fontFamily: 'Inter, sans-serif', fontSize: '11px', padding: 0 }}
+            >
+              contacta a soporte.
+            </button>
+          </p>
+        )}
       </div>
     </div>
   )
+
+  const price = tier === 'watch' ? movie.precio_ver : movie.precio_descargar
+
+  const PENDING_KEY = 'zf_pending_payment'
+
+  const handlePagadito = async () => {
+    setLoading('pagadito')
+    try {
+      const res = await fetch('/api/create-payment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ movieId: movie.id, movieTitle: movie.title, tier, amount: price, userId: user.id }),
+      })
+      const data = await res.json()
+      if (!res.ok || !data.url) throw new Error(data.error || 'Error')
+      localStorage.setItem(PENDING_KEY, JSON.stringify({ movieId: movie.id, movieTitle: movie.title, tier, amount: price, ern: data.ern }))
+      window.location.href = data.url
+    } catch {
+      showToast('No se pudo iniciar el pago. Intenta de nuevo.')
+      setLoading(null)
+    }
+  }
+
+  const handleStripe = async () => {
+    setLoading('stripe')
+    try {
+      const res = await fetch('/api/create-stripe-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ movieId: movie.id, movieTitle: movie.title, tier, amount: price, userId: user.id }),
+      })
+      const data = await res.json()
+      if (!res.ok || !data.url) throw new Error(data.error || 'Error')
+      window.location.href = data.url
+    } catch {
+      showToast('No se pudo iniciar el pago. Intenta de nuevo.')
+      setLoading(null)
+    }
+  }
 
   return (
     <div style={{
@@ -186,79 +226,63 @@ export default function Checkout() {
             </div>
           </div>
 
-          {/* Card form (mock Stripe) */}
+          {/* Opciones de pago */}
           <div>
             <p style={{
               fontFamily: 'Inter, sans-serif', fontSize: '10px',
               letterSpacing: '0.15em', textTransform: 'uppercase',
-              color: '#6b6560', marginBottom: '28px',
-            }}>Datos de pago</p>
+              color: '#6b6560', marginBottom: '16px',
+            }}>Método de pago</p>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
-              <input
-                className="input-field"
-                type="text"
-                placeholder="Nombre en la tarjeta"
-                value={card.name}
-                onChange={e => setCard({ ...card, name: e.target.value })}
-              />
-              <input
-                className="input-field"
-                type="text"
-                placeholder="Número de tarjeta"
-                value={card.number}
-                maxLength={19}
-                onChange={e => setCard({ ...card, number: e.target.value.replace(/\D/g, '').replace(/(.{4})/g, '$1 ').trim() })}
-              />
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
-                <input
-                  className="input-field"
-                  type="text"
-                  placeholder="MM / AA"
-                  value={card.expiry}
-                  maxLength={5}
-                  onChange={e => setCard({ ...card, expiry: e.target.value })}
-                />
-                <input
-                  className="input-field"
-                  type="text"
-                  placeholder="CVC"
-                  value={card.cvc}
-                  maxLength={4}
-                  onChange={e => setCard({ ...card, cvc: e.target.value.replace(/\D/g, '') })}
-                />
-              </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {/* Stripe */}
+              <button
+                className="btn-primary"
+                onClick={handleStripe}
+                disabled={loading !== null}
+                style={{ width: '100%', justifyContent: 'center', fontSize: '12px' }}
+              >
+                {loading === 'stripe' ? (
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
+                    <span style={{ width: '12px', height: '12px', border: '1px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.8s linear infinite' }} />
+                    Redirigiendo…
+                  </span>
+                ) : `Pagar $${price} con Stripe`}
+              </button>
+
+              {/* Pagadito */}
+              <button
+                className="btn-outline"
+                onClick={handlePagadito}
+                disabled={loading !== null}
+                style={{ width: '100%', justifyContent: 'center', fontSize: '12px' }}
+              >
+                {loading === 'pagadito' ? (
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
+                    <span style={{ width: '12px', height: '12px', border: '1px solid rgba(201,162,39,0.4)', borderTopColor: '#c9a227', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.8s linear infinite' }} />
+                    Redirigiendo…
+                  </span>
+                ) : `Pagar $${price} con Pagadito`}
+              </button>
             </div>
 
             <div style={{
-              marginTop: '16px', marginBottom: '32px',
+              marginTop: '16px',
               padding: '12px 16px',
               background: 'rgba(255,255,255,0.02)',
               border: '1px solid rgba(255,255,255,0.04)',
               display: 'flex', alignItems: 'center', gap: '8px',
             }}>
               <span style={{ color: '#3d3a35', fontSize: '12px' }}>🔒</span>
-              <span style={{
-                fontFamily: 'Inter, sans-serif', fontSize: '10px',
-                color: '#3d3a35', letterSpacing: '0.05em',
-              }}>
-                Pago procesado por Stripe · Modo demo (no se cobra nada)
+              <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '10px', color: '#3d3a35', letterSpacing: '0.05em', lineHeight: 1.6 }}>
+                Stripe acepta tarjetas internacionales · Pagadito acepta tarjetas guatemaltecas
               </span>
             </div>
-
-            <button
-              className="btn-primary"
-              onClick={handlePay}
-              disabled={loading}
-              style={{ width: '100%', justifyContent: 'center', fontSize: '12px' }}
-            >
-              {loading ? 'Procesando pago...' : `Pagar $${price}`}
-            </button>
           </div>
         </div>
 
         {/* Right — order summary */}
-        <div style={{
+        <div className="checkout-summary-sticky" style={{
           background: '#0e0e0e',
           border: '1px solid rgba(255,255,255,0.06)',
           padding: '32px',
@@ -309,10 +333,10 @@ export default function Checkout() {
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
               <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '12px', color: '#6b6560' }}>
-                Comisión Stripe
+                Procesado por Pagadito
               </span>
               <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '12px', color: '#6b6560' }}>
-                ~$0.59
+                —
               </span>
             </div>
             <div style={{
